@@ -1,17 +1,39 @@
-# mini_finance_manager
+# Mini Finance Manager
 
-A new Flutter project.
+Personal finance manager built with Flutter.
 
-## Getting Started
+## Tech Stack
 
-This project is a starting point for a Flutter application.
+- Flutter
+- Dart
+- Drift ORM
+- SQLite
+- Clean Architecture
 
-A few resources to get you started if this is your first Flutter project:
+## Current Features
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+- Incomes module
+- Local persistence with SQLite
+- Windows desktop support
+- Android support planned
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Run locally
+
+```bash
+flutter pub get
+flutter run -d windows
+```
+
+## Code generation
+
+```bash
+dart run build_runner build --delete-conflicting-outputs
+```
+
+## Quality checks
+
+```bash
+flutter analyze
+flutter test
+flutter build windows
+```
