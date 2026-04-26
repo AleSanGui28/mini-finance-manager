@@ -35,12 +35,16 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    final database = AppDatabase();
-    _incomeRepository = widget.incomeRepository ?? IncomeRepository(database);
+    final needsDatabase =
+        widget.incomeRepository == null ||
+        widget.paymentAccountRepository == null ||
+        widget.expenseRepository == null;
+    final database = needsDatabase ? AppDatabase() : null;
+    _incomeRepository = widget.incomeRepository ?? IncomeRepository(database!);
     _paymentAccountRepository =
-        widget.paymentAccountRepository ?? PaymentAccountRepository(database);
+        widget.paymentAccountRepository ?? PaymentAccountRepository(database!);
     _expenseRepository =
-        widget.expenseRepository ?? ExpenseRepository(database);
+        widget.expenseRepository ?? ExpenseRepository(database!);
   }
 
   @override
@@ -72,7 +76,7 @@ class _HomePageState extends State<HomePage> {
                       (sum, expense) => sum + expense.amount,
                     );
 
-                    return Column(
+                    return ListView(
                       children: [
                         // Ingresos module card
                         GestureDetector(
@@ -300,7 +304,8 @@ class _HomePageState extends State<HomePage> {
                         ),
                         const SizedBox(height: 16),
                         // Additional modules placeholder
-                        Expanded(
+                        SizedBox(
+                          height: 96,
                           child: Center(
                             child: Text(
                               'Más módulos próximamente',
