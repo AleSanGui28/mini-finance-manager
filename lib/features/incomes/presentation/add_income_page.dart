@@ -66,14 +66,16 @@ class _AddIncomePageState extends State<AddIncomePage> {
         description: _descriptionController.text,
       );
 
+      if (!mounted) return;
+
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Ingreso registrado')));
 
-      if (mounted) {
-        Navigator.of(context).pop(true);
-      }
+      Navigator.of(context).pop(true);
     } catch (e) {
+      if (!mounted) return;
+
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Error: $e')));
