@@ -97,7 +97,7 @@ class _HomePageState extends State<HomePage> {
                                     Theme.of(context).primaryColor,
                                     Theme.of(
                                       context,
-                                    ).primaryColor.withOpacity(0.8),
+                                    ).primaryColor.withValues(alpha: 0.8),
                                   ],
                                 ),
                               ),
@@ -118,7 +118,9 @@ class _HomePageState extends State<HomePage> {
                                       ),
                                       Icon(
                                         Icons.trending_up,
-                                        color: Colors.white.withOpacity(0.6),
+                                        color: Colors.white.withValues(
+                                          alpha: 0.6,
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -135,7 +137,9 @@ class _HomePageState extends State<HomePage> {
                                   Text(
                                     '${incomes.length} ingreso${incomes.length != 1 ? 's' : ''}',
                                     style: TextStyle(
-                                      color: Colors.white.withOpacity(0.7),
+                                      color: Colors.white.withValues(
+                                        alpha: 0.7,
+                                      ),
                                       fontSize: 12,
                                     ),
                                   ),
@@ -167,7 +171,7 @@ class _HomePageState extends State<HomePage> {
                                   end: Alignment.bottomRight,
                                   colors: [
                                     Colors.teal,
-                                    Colors.teal.withOpacity(0.8),
+                                    Colors.teal.withValues(alpha: 0.8),
                                   ],
                                 ),
                               ),
@@ -188,7 +192,9 @@ class _HomePageState extends State<HomePage> {
                                       ),
                                       Icon(
                                         Icons.account_balance,
-                                        color: Colors.white.withOpacity(0.6),
+                                        color: Colors.white.withValues(
+                                          alpha: 0.6,
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -205,7 +211,9 @@ class _HomePageState extends State<HomePage> {
                                   Text(
                                     '${accounts.length} cuenta${accounts.length != 1 ? 's' : ''}',
                                     style: TextStyle(
-                                      color: Colors.white.withOpacity(0.7),
+                                      color: Colors.white.withValues(
+                                        alpha: 0.7,
+                                      ),
                                       fontSize: 12,
                                     ),
                                   ),
@@ -220,7 +228,11 @@ class _HomePageState extends State<HomePage> {
                           onTap: () {
                             Navigator.of(context).push(
                               MaterialPageRoute(
-                                builder: (_) => const ExpensesPage(),
+                                builder: (_) => ExpensesPage(
+                                  expenseRepository: _expenseRepository,
+                                  paymentAccountRepository:
+                                      _paymentAccountRepository,
+                                ),
                               ),
                             );
                           },
@@ -235,7 +247,7 @@ class _HomePageState extends State<HomePage> {
                                   end: Alignment.bottomRight,
                                   colors: [
                                     Colors.red,
-                                    Colors.red.withOpacity(0.8),
+                                    Colors.red.withValues(alpha: 0.8),
                                   ],
                                 ),
                               ),
@@ -256,7 +268,9 @@ class _HomePageState extends State<HomePage> {
                                       ),
                                       Icon(
                                         Icons.trending_down,
-                                        color: Colors.white.withOpacity(0.6),
+                                        color: Colors.white.withValues(
+                                          alpha: 0.6,
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -273,7 +287,9 @@ class _HomePageState extends State<HomePage> {
                                   Text(
                                     '${expenses.length} gasto${expenses.length != 1 ? 's' : ''}',
                                     style: TextStyle(
-                                      color: Colors.white.withOpacity(0.7),
+                                      color: Colors.white.withValues(
+                                        alpha: 0.7,
+                                      ),
                                       fontSize: 12,
                                     ),
                                   ),
