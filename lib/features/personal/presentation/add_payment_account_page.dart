@@ -103,7 +103,7 @@ class _AddPaymentAccountPageState extends State<AddPaymentAccountPage> {
             children: [
               // Type Dropdown
               DropdownButtonFormField<PaymentAccountType>(
-                value: _selectedType,
+                initialValue: _selectedType,
                 decoration: const InputDecoration(
                   labelText: 'Tipo de Cuenta *',
                   border: OutlineInputBorder(),

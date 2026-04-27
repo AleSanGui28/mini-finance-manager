@@ -18,7 +18,7 @@ class Expense {
 
   final String id;
   final double amount;
-  final String type;
+  final ExpenseType type;
   final String paymentAccountId;
   final DateTime date;
   final DateTime createdAt;

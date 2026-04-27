@@ -85,7 +85,7 @@ class _IncomesPageState extends State<IncomesPage> {
                           size: 64,
                           color: Theme.of(
                             context,
-                          ).primaryColor.withOpacity(0.3),
+                          ).primaryColor.withValues(alpha: 0.3),
                         ),
                         const SizedBox(height: 16),
                         const Text(
@@ -147,7 +147,7 @@ class _IncomesPageState extends State<IncomesPage> {
             ),
           );
 
-          if (result == true && mounted) {
+          if (result == true && context.mounted) {
             ScaffoldMessenger.of(
               context,
             ).showSnackBar(const SnackBar(content: Text('Ingreso guardado')));

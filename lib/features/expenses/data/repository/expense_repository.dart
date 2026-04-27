@@ -50,13 +50,11 @@ class ExpenseRepository {
   }
 
   domain.Expense _mapRow(ExpensesTableData row) {
-    String expenseType = ExpenseType.fixed.name;
+    ExpenseType expenseType = ExpenseType.fixed;
     try {
-      // Validate that the type exists in the enum
-      ExpenseType.values.firstWhere((e) => e.name == row.type);
-      expenseType = row.type;
+      expenseType = ExpenseType.values.firstWhere((e) => e.name == row.type);
     } catch (e) {
-      expenseType = ExpenseType.fixed.name;
+      expenseType = ExpenseType.fixed;
     }
 
     FixedExpenseCategory? fixedCategory;

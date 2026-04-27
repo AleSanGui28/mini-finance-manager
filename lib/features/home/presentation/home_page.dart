@@ -35,12 +35,16 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    final database = AppDatabase();
-    _incomeRepository = widget.incomeRepository ?? IncomeRepository(database);
+    final needsDatabase =
+        widget.incomeRepository == null ||
+        widget.paymentAccountRepository == null ||
+        widget.expenseRepository == null;
+    final database = needsDatabase ? AppDatabase() : null;
+    _incomeRepository = widget.incomeRepository ?? IncomeRepository(database!);
     _paymentAccountRepository =
-        widget.paymentAccountRepository ?? PaymentAccountRepository(database);
+        widget.paymentAccountRepository ?? PaymentAccountRepository(database!);
     _expenseRepository =
-        widget.expenseRepository ?? ExpenseRepository(database);
+        widget.expenseRepository ?? ExpenseRepository(database!);
   }
 
   @override
@@ -72,7 +76,7 @@ class _HomePageState extends State<HomePage> {
                       (sum, expense) => sum + expense.amount,
                     );
 
-                    return Column(
+                    return ListView(
                       children: [
                         // Ingresos module card
                         GestureDetector(
@@ -97,7 +101,7 @@ class _HomePageState extends State<HomePage> {
                                     Theme.of(context).primaryColor,
                                     Theme.of(
                                       context,
-                                    ).primaryColor.withOpacity(0.8),
+                                    ).primaryColor.withValues(alpha: 0.8),
                                   ],
                                 ),
                               ),
@@ -118,7 +122,9 @@ class _HomePageState extends State<HomePage> {
                                       ),
                                       Icon(
                                         Icons.trending_up,
-                                        color: Colors.white.withOpacity(0.6),
+                                        color: Colors.white.withValues(
+                                          alpha: 0.6,
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -135,7 +141,9 @@ class _HomePageState extends State<HomePage> {
                                   Text(
                                     '${incomes.length} ingreso${incomes.length != 1 ? 's' : ''}',
                                     style: TextStyle(
-                                      color: Colors.white.withOpacity(0.7),
+                                      color: Colors.white.withValues(
+                                        alpha: 0.7,
+                                      ),
                                       fontSize: 12,
                                     ),
                                   ),
@@ -167,7 +175,7 @@ class _HomePageState extends State<HomePage> {
                                   end: Alignment.bottomRight,
                                   colors: [
                                     Colors.teal,
-                                    Colors.teal.withOpacity(0.8),
+                                    Colors.teal.withValues(alpha: 0.8),
                                   ],
                                 ),
                               ),
@@ -188,7 +196,9 @@ class _HomePageState extends State<HomePage> {
                                       ),
                                       Icon(
                                         Icons.account_balance,
-                                        color: Colors.white.withOpacity(0.6),
+                                        color: Colors.white.withValues(
+                                          alpha: 0.6,
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -205,7 +215,9 @@ class _HomePageState extends State<HomePage> {
                                   Text(
                                     '${accounts.length} cuenta${accounts.length != 1 ? 's' : ''}',
                                     style: TextStyle(
-                                      color: Colors.white.withOpacity(0.7),
+                                      color: Colors.white.withValues(
+                                        alpha: 0.7,
+                                      ),
                                       fontSize: 12,
                                     ),
                                   ),
@@ -220,7 +232,11 @@ class _HomePageState extends State<HomePage> {
                           onTap: () {
                             Navigator.of(context).push(
                               MaterialPageRoute(
-                                builder: (_) => const ExpensesPage(),
+                                builder: (_) => ExpensesPage(
+                                  expenseRepository: _expenseRepository,
+                                  paymentAccountRepository:
+                                      _paymentAccountRepository,
+                                ),
                               ),
                             );
                           },
@@ -235,7 +251,7 @@ class _HomePageState extends State<HomePage> {
                                   end: Alignment.bottomRight,
                                   colors: [
                                     Colors.red,
-                                    Colors.red.withOpacity(0.8),
+                                    Colors.red.withValues(alpha: 0.8),
                                   ],
                                 ),
                               ),
@@ -256,7 +272,9 @@ class _HomePageState extends State<HomePage> {
                                       ),
                                       Icon(
                                         Icons.trending_down,
-                                        color: Colors.white.withOpacity(0.6),
+                                        color: Colors.white.withValues(
+                                          alpha: 0.6,
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -273,7 +291,9 @@ class _HomePageState extends State<HomePage> {
                                   Text(
                                     '${expenses.length} gasto${expenses.length != 1 ? 's' : ''}',
                                     style: TextStyle(
-                                      color: Colors.white.withOpacity(0.7),
+                                      color: Colors.white.withValues(
+                                        alpha: 0.7,
+                                      ),
                                       fontSize: 12,
                                     ),
                                   ),
@@ -284,7 +304,8 @@ class _HomePageState extends State<HomePage> {
                         ),
                         const SizedBox(height: 16),
                         // Additional modules placeholder
-                        Expanded(
+                        SizedBox(
+                          height: 96,
                           child: Center(
                             child: Text(
                               'Más módulos próximamente',
