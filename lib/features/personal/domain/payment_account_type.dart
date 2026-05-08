@@ -15,4 +15,16 @@ extension PaymentAccountTypeExtension on PaymentAccountType {
         return 'Other';
     }
   }
+
+  bool get canReceiveIncome {
+    switch (this) {
+      case PaymentAccountType.bankAccount:
+      case PaymentAccountType.debitCard:
+      case PaymentAccountType.cash:
+        return true;
+      case PaymentAccountType.creditCard:
+      case PaymentAccountType.other:
+        return false;
+    }
+  }
 }

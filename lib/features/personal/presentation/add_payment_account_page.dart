@@ -1,12 +1,18 @@
 import 'package:flutter/material.dart';
 
 import '../data/repository/payment_account_repository.dart';
+import '../domain/payment_account.dart';
 import '../domain/payment_account_type.dart';
 
 class AddPaymentAccountPage extends StatefulWidget {
   final PaymentAccountRepository repository;
+  final PaymentAccount? paymentAccount;
 
-  const AddPaymentAccountPage({super.key, required this.repository});
+  const AddPaymentAccountPage({
+    super.key,
+    required this.repository,
+    this.paymentAccount,
+  });
 
   @override
   State<AddPaymentAccountPage> createState() => _AddPaymentAccountPageState();
@@ -21,10 +27,19 @@ class _AddPaymentAccountPageState extends State<AddPaymentAccountPage> {
   final _ibanController = TextEditingController();
   bool _isLoading = false;
 
+  bool get _isEditing => widget.paymentAccount != null;
+
   @override
   void initState() {
     super.initState();
-    _selectedType = PaymentAccountType.bankAccount;
+    final paymentAccount = widget.paymentAccount;
+    _selectedType = paymentAccount?.type ?? PaymentAccountType.bankAccount;
+    if (paymentAccount != null) {
+      _bankNameController.text = paymentAccount.bankName;
+      _aliasController.text = paymentAccount.alias;
+      _cardLastDigitsController.text = paymentAccount.cardLastDigits ?? '';
+      _ibanController.text = paymentAccount.iban ?? '';
+    }
   }
 
   @override
@@ -55,27 +70,47 @@ class _AddPaymentAccountPageState extends State<AddPaymentAccountPage> {
     setState(() => _isLoading = true);
 
     try {
-      await widget.repository.addPaymentAccount(
-        bankName: _bankNameController.text.trim(),
-        alias: _aliasController.text.trim(),
-        type: _selectedType,
-        cardLastDigits: _shouldShowCardLastDigits()
-            ? (_cardLastDigitsController.text.isNotEmpty
-                  ? _cardLastDigitsController.text.trim()
-                  : null)
-            : null,
-        iban: _shouldShowIban()
-            ? (_ibanController.text.isNotEmpty
-                  ? _ibanController.text.trim()
-                  : null)
-            : null,
-      );
+      final cardLastDigits = _shouldShowCardLastDigits()
+          ? _emptyToNull(_cardLastDigitsController.text)
+          : null;
+      final iban = _shouldShowIban()
+          ? _emptyToNull(_ibanController.text)
+          : null;
+
+      if (_isEditing) {
+        final originalAccount = widget.paymentAccount!;
+        await widget.repository.updatePaymentAccount(
+          PaymentAccount(
+            id: originalAccount.id,
+            bankName: _bankNameController.text.trim(),
+            alias: _aliasController.text.trim(),
+            type: _selectedType,
+            cardLastDigits: cardLastDigits,
+            iban: iban,
+            createdAt: originalAccount.createdAt,
+          ),
+        );
+      } else {
+        await widget.repository.addPaymentAccount(
+          bankName: _bankNameController.text.trim(),
+          alias: _aliasController.text.trim(),
+          type: _selectedType,
+          cardLastDigits: cardLastDigits,
+          iban: iban,
+        );
+      }
 
       if (mounted) {
-        Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Cuenta de pago agregada exitosamente')),
+          SnackBar(
+            content: Text(
+              _isEditing
+                  ? 'Cuenta de pago actualizada'
+                  : 'Cuenta de pago agregada exitosamente',
+            ),
+          ),
         );
+        Navigator.of(context).pop(true);
       }
     } catch (e) {
       if (mounted) {
@@ -90,10 +125,19 @@ class _AddPaymentAccountPageState extends State<AddPaymentAccountPage> {
     }
   }
 
+  String? _emptyToNull(String value) {
+    final trimmed = value.trim();
+    return trimmed.isEmpty ? null : trimmed;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Agregar Cuenta de Pago')),
+      appBar: AppBar(
+        title: Text(
+          _isEditing ? 'Editar Cuenta de Pago' : 'Agregar Cuenta de Pago',
+        ),
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Form(
@@ -218,9 +262,9 @@ class _AddPaymentAccountPageState extends State<AddPaymentAccountPage> {
                           width: 20,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Text(
-                          'Guardar Cuenta',
-                          style: TextStyle(fontSize: 16),
+                      : Text(
+                          _isEditing ? 'Guardar Cambios' : 'Guardar Cuenta',
+                          style: const TextStyle(fontSize: 16),
                         ),
                 ),
               ),

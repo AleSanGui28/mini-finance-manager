@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../personal/data/repository/payment_account_repository.dart';
 import '../../personal/domain/payment_account.dart';
+import '../../shared/domain/money_currency.dart';
 import '../data/repository/expense_repository.dart';
+import '../domain/expense.dart';
 import '../domain/expense_frequency.dart';
 import '../domain/expense_type.dart';
 import '../domain/fixed_expense_category.dart';
@@ -12,10 +14,12 @@ class AddExpensePage extends StatefulWidget {
     super.key,
     required this.expenseRepository,
     required this.paymentAccountRepository,
+    this.expense,
   });
 
   final ExpenseRepository expenseRepository;
   final PaymentAccountRepository paymentAccountRepository;
+  final Expense? expense;
 
   @override
   State<AddExpensePage> createState() => _AddExpensePageState();
@@ -28,11 +32,32 @@ class _AddExpensePageState extends State<AddExpensePage> {
   final _customFrequencyController = TextEditingController();
 
   ExpenseType _selectedType = ExpenseType.sporadic;
+  MoneyCurrency _selectedCurrency = MoneyCurrency.crc;
   String? _selectedPaymentAccountId;
   DateTime? _selectedDate;
   FixedExpenseCategory? _selectedFixedCategory;
   ExpenseFrequency? _selectedFrequency;
   bool _isSaving = false;
+
+  bool get _isEditing => widget.expense != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final expense = widget.expense;
+    if (expense != null) {
+      _amountController.text = expense.amount.toStringAsFixed(2);
+      _descriptionController.text = expense.description ?? '';
+      _customFrequencyController.text =
+          expense.customFrequencyDescription ?? '';
+      _selectedType = expense.type;
+      _selectedCurrency = expense.currency;
+      _selectedPaymentAccountId = expense.paymentAccountId;
+      _selectedDate = expense.date;
+      _selectedFixedCategory = expense.fixedCategory;
+      _selectedFrequency = expense.frequency;
+    }
+  }
 
   @override
   void dispose() {
@@ -73,31 +98,57 @@ class _AddExpensePageState extends State<AddExpensePage> {
     setState(() => _isSaving = true);
 
     try {
-      await widget.expenseRepository.addExpense(
-        amount: double.parse(_amountController.text),
-        type: _selectedType,
-        paymentAccountId: _selectedPaymentAccountId!,
-        date: _selectedDate!,
-        description: _emptyToNull(_descriptionController.text),
-        fixedCategory: _selectedType == ExpenseType.fixed
-            ? _selectedFixedCategory
-            : null,
-        frequency: _selectedType == ExpenseType.fixed
-            ? _selectedFrequency
-            : null,
-        customFrequencyDescription:
-            _selectedType == ExpenseType.fixed &&
-                _selectedFrequency == ExpenseFrequency.custom
-            ? _emptyToNull(_customFrequencyController.text)
-            : null,
-      );
+      final amount = double.parse(_amountController.text);
+      final description = _emptyToNull(_descriptionController.text);
+      final fixedCategory = _selectedType == ExpenseType.fixed
+          ? _selectedFixedCategory
+          : null;
+      final frequency = _selectedType == ExpenseType.fixed
+          ? _selectedFrequency
+          : null;
+      final customFrequencyDescription =
+          _selectedType == ExpenseType.fixed &&
+              _selectedFrequency == ExpenseFrequency.custom
+          ? _emptyToNull(_customFrequencyController.text)
+          : null;
+
+      if (_isEditing) {
+        final originalExpense = widget.expense!;
+        await widget.expenseRepository.updateExpense(
+          Expense(
+            id: originalExpense.id,
+            amount: amount,
+            currency: _selectedCurrency,
+            type: _selectedType,
+            paymentAccountId: _selectedPaymentAccountId!,
+            date: _selectedDate!,
+            createdAt: originalExpense.createdAt,
+            description: description,
+            fixedCategory: fixedCategory,
+            frequency: frequency,
+            customFrequencyDescription: customFrequencyDescription,
+          ),
+        );
+      } else {
+        await widget.expenseRepository.addExpense(
+          amount: amount,
+          currency: _selectedCurrency,
+          type: _selectedType,
+          paymentAccountId: _selectedPaymentAccountId!,
+          date: _selectedDate!,
+          description: description,
+          fixedCategory: fixedCategory,
+          frequency: frequency,
+          customFrequencyDescription: customFrequencyDescription,
+        );
+      }
 
       if (!mounted) return;
 
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Gasto registrado')));
-      Navigator.of(context).pop();
+      ).showSnackBar(SnackBar(content: Text(_successMessage)));
+      Navigator.of(context).pop(true);
     } catch (e) {
       if (!mounted) return;
 
@@ -122,15 +173,26 @@ class _AddExpensePageState extends State<AddExpensePage> {
         '${date.year}';
   }
 
+  String get _successMessage =>
+      _isEditing ? 'Gasto actualizado' : 'Gasto registrado';
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Agregar gasto')),
+      appBar: AppBar(
+        title: Text(_isEditing ? 'Editar gasto' : 'Agregar gasto'),
+      ),
       body: SafeArea(
         child: StreamBuilder<List<PaymentAccount>>(
           stream: widget.paymentAccountRepository.watchPaymentAccounts(),
           builder: (context, snapshot) {
             final accounts = snapshot.data ?? [];
+            final selectedAccountId =
+                accounts.any(
+                  (account) => account.id == _selectedPaymentAccountId,
+                )
+                ? _selectedPaymentAccountId
+                : null;
 
             return SingleChildScrollView(
               padding: const EdgeInsets.all(16),
@@ -142,8 +204,8 @@ class _AddExpensePageState extends State<AddExpensePage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Nuevo gasto',
+                        Text(
+                          _isEditing ? 'Editar gasto' : 'Nuevo gasto',
                           style: TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.w600,
@@ -202,8 +264,32 @@ class _AddExpensePageState extends State<AddExpensePage> {
                           },
                         ),
                         const SizedBox(height: 16),
+                        DropdownButtonFormField<MoneyCurrency>(
+                          initialValue: _selectedCurrency,
+                          decoration: const InputDecoration(
+                            labelText: 'Moneda',
+                            prefixIcon: Icon(Icons.payments_outlined),
+                            border: OutlineInputBorder(),
+                          ),
+                          items: MoneyCurrency.values.map((currency) {
+                            return DropdownMenuItem(
+                              value: currency,
+                              child: Text(
+                                '${currency.symbol} ${currency.label}',
+                              ),
+                            );
+                          }).toList(),
+                          onChanged: (value) {
+                            if (value == null) return;
+
+                            setState(() {
+                              _selectedCurrency = value;
+                            });
+                          },
+                        ),
+                        const SizedBox(height: 16),
                         DropdownButtonFormField<String>(
-                          initialValue: _selectedPaymentAccountId,
+                          initialValue: selectedAccountId,
                           decoration: const InputDecoration(
                             labelText: 'Cuenta de pago',
                             prefixIcon: Icon(Icons.account_balance_wallet),
@@ -318,7 +404,8 @@ class _AddExpensePageState extends State<AddExpensePage> {
                               return null;
                             },
                           ),
-                          if (_selectedFrequency == ExpenseFrequency.custom) ...[
+                          if (_selectedFrequency ==
+                              ExpenseFrequency.custom) ...[
                             const SizedBox(height: 16),
                             TextFormField(
                               controller: _customFrequencyController,
@@ -353,7 +440,9 @@ class _AddExpensePageState extends State<AddExpensePage> {
                                     ),
                                   )
                                 : const Icon(Icons.save_outlined),
-                            label: const Text('Guardar gasto'),
+                            label: Text(
+                              _isEditing ? 'Guardar cambios' : 'Guardar gasto',
+                            ),
                           ),
                         ),
                       ],

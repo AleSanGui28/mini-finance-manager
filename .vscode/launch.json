@@ -1,0 +1,50 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Mini Finance Manager (Windows Debug)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "args": [],
+      "toolArgs": ["--verbose"],
+      "deviceId": "windows",
+      "flutterMode": "debug"
+    },
+    {
+      "name": "Mini Finance Manager (Android Debug)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "args": [],
+      "toolArgs": ["--verbose"],
+      "flutterMode": "debug",
+      "preLaunchTask": "flutter: pub get"
+    },
+    {
+      "name": "Mini Finance Manager (Profile)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "args": [],
+      "deviceId": "windows",
+      "flutterMode": "profile"
+    },
+    {
+      "name": "Mini Finance Manager (Release)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "args": [],
+      "deviceId": "windows",
+      "flutterMode": "release"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Multi-start",
+      "configurations": ["Mini Finance Manager (Windows Debug)"],
+      "preLaunchTask": "flutter: pub get"
+    }
+  ]
+}
