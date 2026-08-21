@@ -4,6 +4,7 @@ import '../data/repository/payment_account_repository.dart';
 import '../domain/payment_account.dart';
 import '../domain/payment_account_type.dart';
 import 'add_payment_account_page.dart';
+import 'credit_card_billing_cycle_text.dart';
 
 class PaymentAccountDetailPage extends StatelessWidget {
   const PaymentAccountDetailPage({
@@ -129,6 +130,22 @@ class PaymentAccountDetailPage extends StatelessWidget {
                         _buildDetailRow(
                           'IBAN',
                           _maskedIban(paymentAccount.iban!),
+                        ),
+                      ],
+                      if (paymentAccount.type ==
+                              PaymentAccountType.creditCard &&
+                          paymentAccount.closingDayOfMonth != null) ...[
+                        const SizedBox(height: 12),
+                        _buildDetailRow(
+                          'Fecha de corte',
+                          '${paymentAccount.closingDayOfMonth}',
+                        ),
+                        const SizedBox(height: 12),
+                        _buildDetailRow(
+                          'Rango de pago',
+                          formatPaymentWindowValue(
+                            paymentAccount.closingDayOfMonth!,
+                          ),
                         ),
                       ],
                       const SizedBox(height: 12),

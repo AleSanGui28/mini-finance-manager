@@ -330,5 +330,95 @@ void main() {
         await tempDir.delete(recursive: true);
       }
     });
+
+    test(
+      'version 6 data adds nullable payment account closing day column',
+      () async {
+        final tempDir = await Directory.systemTemp.createTemp(
+          'mini_finance_manager_test_',
+        );
+        final file = File('${tempDir.path}/migration_test.sqlite');
+
+        final database = AppDatabase.test(
+          NativeDatabase(
+            file,
+            setup: (database) {
+              database
+                ..execute('''
+                CREATE TABLE incomes_table (
+                  id TEXT NOT NULL PRIMARY KEY,
+                  amount REAL NOT NULL,
+                  currency TEXT NOT NULL DEFAULT 'crc',
+                  payment_account_id TEXT NULL,
+                  category TEXT NOT NULL,
+                  date INTEGER NOT NULL,
+                  description TEXT NOT NULL DEFAULT '',
+                  created_at INTEGER NOT NULL
+                )
+              ''')
+                ..execute('''
+                CREATE TABLE payment_accounts_table (
+                  id TEXT NOT NULL PRIMARY KEY,
+                  bank_name TEXT NOT NULL,
+                  alias TEXT NOT NULL,
+                  type TEXT NOT NULL,
+                  card_last_digits TEXT NULL,
+                  iban TEXT NULL,
+                  created_at INTEGER NOT NULL
+                )
+              ''')
+                ..execute('''
+                CREATE TABLE expenses_table (
+                  id TEXT NOT NULL PRIMARY KEY,
+                  amount REAL NOT NULL,
+                  currency TEXT NOT NULL DEFAULT 'crc',
+                  type TEXT NOT NULL,
+                  payment_account_id TEXT NOT NULL,
+                  date INTEGER NOT NULL,
+                  created_at INTEGER NOT NULL,
+                  description TEXT NULL,
+                  fixed_category TEXT NULL,
+                  frequency TEXT NULL,
+                  custom_frequency_description TEXT NULL
+                )
+              ''')
+                ..execute('''
+                CREATE TABLE saving_goals_table (
+                  id TEXT NOT NULL PRIMARY KEY,
+                  title TEXT NOT NULL,
+                  target_amount REAL NOT NULL,
+                  target_date INTEGER NULL,
+                  status TEXT NOT NULL,
+                  created_at INTEGER NOT NULL,
+                  updated_at INTEGER NULL
+                )
+              ''')
+                ..execute('''
+                INSERT INTO payment_accounts_table (
+                  id, bank_name, alias, type, card_last_digits, iban, created_at
+                ) VALUES (
+                  'payment-account-1', 'Banco Nacional', 'Tarjeta',
+                  'creditCard', '1234', NULL, 0
+                )
+              ''')
+                ..execute('PRAGMA user_version = 6');
+            },
+          ),
+        );
+
+        try {
+          final rows = await database
+              .customSelect(
+                'SELECT closing_day_of_month FROM payment_accounts_table',
+              )
+              .get();
+
+          expect(rows.single.data['closing_day_of_month'], isNull);
+        } finally {
+          await database.close();
+          await tempDir.delete(recursive: true);
+        }
+      },
+    );
   });
 }

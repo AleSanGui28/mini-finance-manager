@@ -565,6 +565,17 @@ class $PaymentAccountsTableTable extends PaymentAccountsTable
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _closingDayOfMonthMeta = const VerificationMeta(
+    'closingDayOfMonth',
+  );
+  @override
+  late final GeneratedColumn<int> closingDayOfMonth = GeneratedColumn<int>(
+    'closing_day_of_month',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -602,6 +613,7 @@ class $PaymentAccountsTableTable extends PaymentAccountsTable
     bankName,
     alias,
     type,
+    closingDayOfMonth,
     createdAt,
     cardLastDigits,
     iban,
@@ -646,6 +658,15 @@ class $PaymentAccountsTableTable extends PaymentAccountsTable
       );
     } else if (isInserting) {
       context.missing(_typeMeta);
+    }
+    if (data.containsKey('closing_day_of_month')) {
+      context.handle(
+        _closingDayOfMonthMeta,
+        closingDayOfMonth.isAcceptableOrUnknown(
+          data['closing_day_of_month']!,
+          _closingDayOfMonthMeta,
+        ),
+      );
     }
     if (data.containsKey('created_at')) {
       context.handle(
@@ -698,6 +719,10 @@ class $PaymentAccountsTableTable extends PaymentAccountsTable
         DriftSqlType.string,
         data['${effectivePrefix}type'],
       )!,
+      closingDayOfMonth: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}closing_day_of_month'],
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -725,6 +750,7 @@ class PaymentAccountsTableData extends DataClass
   final String bankName;
   final String alias;
   final String type;
+  final int? closingDayOfMonth;
   final DateTime createdAt;
   final String? cardLastDigits;
   final String? iban;
@@ -733,6 +759,7 @@ class PaymentAccountsTableData extends DataClass
     required this.bankName,
     required this.alias,
     required this.type,
+    this.closingDayOfMonth,
     required this.createdAt,
     this.cardLastDigits,
     this.iban,
@@ -744,6 +771,9 @@ class PaymentAccountsTableData extends DataClass
     map['bank_name'] = Variable<String>(bankName);
     map['alias'] = Variable<String>(alias);
     map['type'] = Variable<String>(type);
+    if (!nullToAbsent || closingDayOfMonth != null) {
+      map['closing_day_of_month'] = Variable<int>(closingDayOfMonth);
+    }
     map['created_at'] = Variable<DateTime>(createdAt);
     if (!nullToAbsent || cardLastDigits != null) {
       map['card_last_digits'] = Variable<String>(cardLastDigits);
@@ -760,6 +790,9 @@ class PaymentAccountsTableData extends DataClass
       bankName: Value(bankName),
       alias: Value(alias),
       type: Value(type),
+      closingDayOfMonth: closingDayOfMonth == null && nullToAbsent
+          ? const Value.absent()
+          : Value(closingDayOfMonth),
       createdAt: Value(createdAt),
       cardLastDigits: cardLastDigits == null && nullToAbsent
           ? const Value.absent()
@@ -778,6 +811,7 @@ class PaymentAccountsTableData extends DataClass
       bankName: serializer.fromJson<String>(json['bankName']),
       alias: serializer.fromJson<String>(json['alias']),
       type: serializer.fromJson<String>(json['type']),
+      closingDayOfMonth: serializer.fromJson<int?>(json['closingDayOfMonth']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       cardLastDigits: serializer.fromJson<String?>(json['cardLastDigits']),
       iban: serializer.fromJson<String?>(json['iban']),
@@ -791,6 +825,7 @@ class PaymentAccountsTableData extends DataClass
       'bankName': serializer.toJson<String>(bankName),
       'alias': serializer.toJson<String>(alias),
       'type': serializer.toJson<String>(type),
+      'closingDayOfMonth': serializer.toJson<int?>(closingDayOfMonth),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'cardLastDigits': serializer.toJson<String?>(cardLastDigits),
       'iban': serializer.toJson<String?>(iban),
@@ -802,6 +837,7 @@ class PaymentAccountsTableData extends DataClass
     String? bankName,
     String? alias,
     String? type,
+    Value<int?> closingDayOfMonth = const Value.absent(),
     DateTime? createdAt,
     Value<String?> cardLastDigits = const Value.absent(),
     Value<String?> iban = const Value.absent(),
@@ -810,6 +846,9 @@ class PaymentAccountsTableData extends DataClass
     bankName: bankName ?? this.bankName,
     alias: alias ?? this.alias,
     type: type ?? this.type,
+    closingDayOfMonth: closingDayOfMonth.present
+        ? closingDayOfMonth.value
+        : this.closingDayOfMonth,
     createdAt: createdAt ?? this.createdAt,
     cardLastDigits: cardLastDigits.present
         ? cardLastDigits.value
@@ -824,6 +863,9 @@ class PaymentAccountsTableData extends DataClass
       bankName: data.bankName.present ? data.bankName.value : this.bankName,
       alias: data.alias.present ? data.alias.value : this.alias,
       type: data.type.present ? data.type.value : this.type,
+      closingDayOfMonth: data.closingDayOfMonth.present
+          ? data.closingDayOfMonth.value
+          : this.closingDayOfMonth,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       cardLastDigits: data.cardLastDigits.present
           ? data.cardLastDigits.value
@@ -839,6 +881,7 @@ class PaymentAccountsTableData extends DataClass
           ..write('bankName: $bankName, ')
           ..write('alias: $alias, ')
           ..write('type: $type, ')
+          ..write('closingDayOfMonth: $closingDayOfMonth, ')
           ..write('createdAt: $createdAt, ')
           ..write('cardLastDigits: $cardLastDigits, ')
           ..write('iban: $iban')
@@ -847,8 +890,16 @@ class PaymentAccountsTableData extends DataClass
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, bankName, alias, type, createdAt, cardLastDigits, iban);
+  int get hashCode => Object.hash(
+    id,
+    bankName,
+    alias,
+    type,
+    closingDayOfMonth,
+    createdAt,
+    cardLastDigits,
+    iban,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -857,6 +908,7 @@ class PaymentAccountsTableData extends DataClass
           other.bankName == this.bankName &&
           other.alias == this.alias &&
           other.type == this.type &&
+          other.closingDayOfMonth == this.closingDayOfMonth &&
           other.createdAt == this.createdAt &&
           other.cardLastDigits == this.cardLastDigits &&
           other.iban == this.iban);
@@ -868,6 +920,7 @@ class PaymentAccountsTableCompanion
   final Value<String> bankName;
   final Value<String> alias;
   final Value<String> type;
+  final Value<int?> closingDayOfMonth;
   final Value<DateTime> createdAt;
   final Value<String?> cardLastDigits;
   final Value<String?> iban;
@@ -877,6 +930,7 @@ class PaymentAccountsTableCompanion
     this.bankName = const Value.absent(),
     this.alias = const Value.absent(),
     this.type = const Value.absent(),
+    this.closingDayOfMonth = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.cardLastDigits = const Value.absent(),
     this.iban = const Value.absent(),
@@ -887,6 +941,7 @@ class PaymentAccountsTableCompanion
     required String bankName,
     required String alias,
     required String type,
+    this.closingDayOfMonth = const Value.absent(),
     required DateTime createdAt,
     this.cardLastDigits = const Value.absent(),
     this.iban = const Value.absent(),
@@ -901,6 +956,7 @@ class PaymentAccountsTableCompanion
     Expression<String>? bankName,
     Expression<String>? alias,
     Expression<String>? type,
+    Expression<int>? closingDayOfMonth,
     Expression<DateTime>? createdAt,
     Expression<String>? cardLastDigits,
     Expression<String>? iban,
@@ -911,6 +967,7 @@ class PaymentAccountsTableCompanion
       if (bankName != null) 'bank_name': bankName,
       if (alias != null) 'alias': alias,
       if (type != null) 'type': type,
+      if (closingDayOfMonth != null) 'closing_day_of_month': closingDayOfMonth,
       if (createdAt != null) 'created_at': createdAt,
       if (cardLastDigits != null) 'card_last_digits': cardLastDigits,
       if (iban != null) 'iban': iban,
@@ -923,6 +980,7 @@ class PaymentAccountsTableCompanion
     Value<String>? bankName,
     Value<String>? alias,
     Value<String>? type,
+    Value<int?>? closingDayOfMonth,
     Value<DateTime>? createdAt,
     Value<String?>? cardLastDigits,
     Value<String?>? iban,
@@ -933,6 +991,7 @@ class PaymentAccountsTableCompanion
       bankName: bankName ?? this.bankName,
       alias: alias ?? this.alias,
       type: type ?? this.type,
+      closingDayOfMonth: closingDayOfMonth ?? this.closingDayOfMonth,
       createdAt: createdAt ?? this.createdAt,
       cardLastDigits: cardLastDigits ?? this.cardLastDigits,
       iban: iban ?? this.iban,
@@ -954,6 +1013,9 @@ class PaymentAccountsTableCompanion
     }
     if (type.present) {
       map['type'] = Variable<String>(type.value);
+    }
+    if (closingDayOfMonth.present) {
+      map['closing_day_of_month'] = Variable<int>(closingDayOfMonth.value);
     }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
@@ -977,6 +1039,7 @@ class PaymentAccountsTableCompanion
           ..write('bankName: $bankName, ')
           ..write('alias: $alias, ')
           ..write('type: $type, ')
+          ..write('closingDayOfMonth: $closingDayOfMonth, ')
           ..write('createdAt: $createdAt, ')
           ..write('cardLastDigits: $cardLastDigits, ')
           ..write('iban: $iban, ')
@@ -2433,6 +2496,7 @@ typedef $$PaymentAccountsTableTableCreateCompanionBuilder =
       required String bankName,
       required String alias,
       required String type,
+      Value<int?> closingDayOfMonth,
       required DateTime createdAt,
       Value<String?> cardLastDigits,
       Value<String?> iban,
@@ -2444,6 +2508,7 @@ typedef $$PaymentAccountsTableTableUpdateCompanionBuilder =
       Value<String> bankName,
       Value<String> alias,
       Value<String> type,
+      Value<int?> closingDayOfMonth,
       Value<DateTime> createdAt,
       Value<String?> cardLastDigits,
       Value<String?> iban,
@@ -2476,6 +2541,11 @@ class $$PaymentAccountsTableTableFilterComposer
 
   ColumnFilters<String> get type => $composableBuilder(
     column: $table.type,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get closingDayOfMonth => $composableBuilder(
+    column: $table.closingDayOfMonth,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -2524,6 +2594,11 @@ class $$PaymentAccountsTableTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get closingDayOfMonth => $composableBuilder(
+    column: $table.closingDayOfMonth,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -2560,6 +2635,11 @@ class $$PaymentAccountsTableTableAnnotationComposer
 
   GeneratedColumn<String> get type =>
       $composableBuilder(column: $table.type, builder: (column) => column);
+
+  GeneratedColumn<int> get closingDayOfMonth => $composableBuilder(
+    column: $table.closingDayOfMonth,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -2620,6 +2700,7 @@ class $$PaymentAccountsTableTableTableManager
                 Value<String> bankName = const Value.absent(),
                 Value<String> alias = const Value.absent(),
                 Value<String> type = const Value.absent(),
+                Value<int?> closingDayOfMonth = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<String?> cardLastDigits = const Value.absent(),
                 Value<String?> iban = const Value.absent(),
@@ -2629,6 +2710,7 @@ class $$PaymentAccountsTableTableTableManager
                 bankName: bankName,
                 alias: alias,
                 type: type,
+                closingDayOfMonth: closingDayOfMonth,
                 createdAt: createdAt,
                 cardLastDigits: cardLastDigits,
                 iban: iban,
@@ -2640,6 +2722,7 @@ class $$PaymentAccountsTableTableTableManager
                 required String bankName,
                 required String alias,
                 required String type,
+                Value<int?> closingDayOfMonth = const Value.absent(),
                 required DateTime createdAt,
                 Value<String?> cardLastDigits = const Value.absent(),
                 Value<String?> iban = const Value.absent(),
@@ -2649,6 +2732,7 @@ class $$PaymentAccountsTableTableTableManager
                 bankName: bankName,
                 alias: alias,
                 type: type,
+                closingDayOfMonth: closingDayOfMonth,
                 createdAt: createdAt,
                 cardLastDigits: cardLastDigits,
                 iban: iban,

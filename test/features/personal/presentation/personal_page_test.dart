@@ -28,6 +28,7 @@ class FakePaymentAccountRepository implements PaymentAccountRepository {
     required PaymentAccountType type,
     String? cardLastDigits,
     String? iban,
+    int? closingDayOfMonth,
   }) {
     throw UnimplementedError();
   }
@@ -179,6 +180,24 @@ void main() {
       expect(find.text('Principal'), findsOneWidget);
     });
 
+    testWidgets('displays credit card billing information', (tester) async {
+      final repository = FakePaymentAccountRepository([
+        _paymentAccount(
+          type: PaymentAccountType.creditCard,
+          closingDayOfMonth: 25,
+        ),
+      ]);
+
+      await tester.pumpWidget(_buildPage(repository));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Fecha de corte: 25'), findsOneWidget);
+      expect(
+        find.text('Rango de pago: del 25 al 10 del siguiente mes'),
+        findsOneWidget,
+      );
+    });
+
     testWidgets(
       'does not delete account when swipe confirmation is cancelled',
       (tester) async {
@@ -251,12 +270,16 @@ Widget _buildPersonalPage(
   );
 }
 
-PaymentAccount _paymentAccount() {
+PaymentAccount _paymentAccount({
+  PaymentAccountType type = PaymentAccountType.debitCard,
+  int? closingDayOfMonth,
+}) {
   return PaymentAccount(
     id: 'payment-account-1',
     bankName: 'Banco Nacional',
     alias: 'Principal',
-    type: PaymentAccountType.debitCard,
+    type: type,
+    closingDayOfMonth: closingDayOfMonth,
     cardLastDigits: '1234',
     iban: 'CR05015202001026284066',
     createdAt: DateTime(2026, 4, 28),

@@ -72,6 +72,7 @@ class FakePaymentAccountRepository implements PaymentAccountRepository {
     required PaymentAccountType type,
     String? cardLastDigits,
     String? iban,
+    int? closingDayOfMonth,
   }) {
     throw UnimplementedError();
   }

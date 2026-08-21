@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mini_finance_manager/features/balance/presentation/balance_page.dart';
 import 'package:mini_finance_manager/features/home/presentation/home_page.dart';
 import 'package:mini_finance_manager/features/expenses/data/repository/expense_repository.dart';
 import 'package:mini_finance_manager/features/expenses/domain/expense.dart'
@@ -72,6 +73,7 @@ class MockPaymentAccountRepository implements PaymentAccountRepository {
     required PaymentAccountType type,
     String? cardLastDigits,
     String? iban,
+    int? closingDayOfMonth,
   }) {
     throw UnimplementedError();
   }
@@ -251,7 +253,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('₡140.00'), findsOneWidget);
+      expect(find.text('${MoneyCurrency.crc.symbol}140.00'), findsOneWidget);
       expect(find.text(r'$25.00'), findsOneWidget);
     });
 
@@ -326,7 +328,8 @@ void main() {
       expect(find.text('Personal'), findsOneWidget);
       expect(find.text('Cuentas de pago'), findsOneWidget);
       expect(find.text('Ahorros'), findsOneWidget);
-      expect(find.text('Meta de ahorro: 1500.00'), findsOneWidget);
+      expect(find.text('1500'), findsOneWidget);
+      expect(find.text('meta total'), findsOneWidget);
     });
 
     testWidgets('renders HomePage without errors', (WidgetTester tester) async {
@@ -363,10 +366,50 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('₡140.00'), findsOneWidget);
+      expect(find.text('${MoneyCurrency.crc.symbol}140.00'), findsOneWidget);
       expect(find.text(r'$25.00'), findsOneWidget);
     });
+
+    testWidgets('Balance card shows balance and status', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(
+        buildHomePage(
+          incomeRepository: MockIncomeRepository([
+            _income(id: 'income-1', amount: 1000),
+          ]),
+          expenseRepository: MockExpenseRepository([
+            _expense(id: 'expense-1', amount: 400),
+          ]),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await _scrollToBalanceCard(tester);
+
+      expect(find.text('Balance'), findsOneWidget);
+      expect(find.text('${MoneyCurrency.crc.symbol}600.00'), findsOneWidget);
+      expect(find.text('Beneficio'), findsOneWidget);
+    });
+
+    testWidgets('navigates to BalancePage when Balance card is tapped', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(buildHomePage());
+      await tester.pumpAndSettle();
+
+      await _scrollToBalanceCard(tester);
+      await tester.tap(find.text('Balance'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(BalancePage), findsOneWidget);
+    });
   });
+}
+
+Future<void> _scrollToBalanceCard(WidgetTester tester) async {
+  await tester.drag(find.byType(ListView), const Offset(0, -500));
+  await tester.pumpAndSettle();
 }
 
 Income _income({

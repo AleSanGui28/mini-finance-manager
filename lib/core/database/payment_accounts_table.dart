@@ -5,6 +5,7 @@ class PaymentAccountsTable extends Table {
   TextColumn get bankName => text()();
   TextColumn get alias => text()();
   TextColumn get type => text()();
+  IntColumn get closingDayOfMonth => integer().nullable()();
   DateTimeColumn get createdAt => dateTime()();
   TextColumn get cardLastDigits => text().nullable()();
   TextColumn get iban => text().nullable()();

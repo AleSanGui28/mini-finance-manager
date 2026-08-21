@@ -40,6 +40,49 @@ void main() {
       expect(accounts.single.iban, 'CR05015202001026284066');
     });
 
+    test('addPaymentAccount stores and maps credit card closing day', () async {
+      await repository.addPaymentAccount(
+        bankName: 'Banco Nacional',
+        alias: 'Tarjeta principal',
+        type: PaymentAccountType.creditCard,
+        cardLastDigits: '1234',
+        iban: 'CR05015202001026284066',
+        closingDayOfMonth: 3,
+      );
+
+      final rows = await database.select(database.paymentAccountsTable).get();
+      final accounts = await repository.watchPaymentAccounts().first;
+
+      expect(rows.single.closingDayOfMonth, 3);
+      expect(accounts.single.closingDayOfMonth, 3);
+    });
+
+    test('addPaymentAccount rejects credit card without closing day', () {
+      expect(
+        () => repository.addPaymentAccount(
+          bankName: 'Banco Nacional',
+          alias: 'Tarjeta principal',
+          type: PaymentAccountType.creditCard,
+        ),
+        throwsA(isA<ArgumentError>()),
+      );
+    });
+
+    test('addPaymentAccount clears closing day for non-credit cards', () async {
+      await repository.addPaymentAccount(
+        bankName: 'Banco Nacional',
+        alias: 'Principal',
+        type: PaymentAccountType.bankAccount,
+        closingDayOfMonth: 3,
+      );
+
+      final rows = await database.select(database.paymentAccountsTable).get();
+      final accounts = await repository.watchPaymentAccounts().first;
+
+      expect(rows.single.closingDayOfMonth, isNull);
+      expect(accounts.single.closingDayOfMonth, isNull);
+    });
+
     test(
       'updatePaymentAccount updates editable fields and preserves identity',
       () async {
@@ -66,6 +109,7 @@ void main() {
         expect(updatedAccount.bankName, 'Banco Popular');
         expect(updatedAccount.alias, 'Gastos diarios');
         expect(updatedAccount.type, PaymentAccountType.debitCard);
+        expect(updatedAccount.closingDayOfMonth, isNull);
         expect(updatedAccount.cardLastDigits, '1234');
         expect(updatedAccount.iban, 'CR05015202001026284066');
       },
@@ -95,9 +139,67 @@ void main() {
           (await repository.watchPaymentAccounts().first).single;
 
       expect(updatedAccount.type, PaymentAccountType.cash);
+      expect(updatedAccount.closingDayOfMonth, isNull);
       expect(updatedAccount.cardLastDigits, isNull);
       expect(updatedAccount.iban, isNull);
     });
+
+    test('updatePaymentAccount updates credit card closing day', () async {
+      final createdAt = DateTime(2026, 4, 28);
+      await _insertPaymentAccount(
+        database,
+        type: PaymentAccountType.creditCard,
+        closingDayOfMonth: 3,
+        createdAt: createdAt,
+      );
+
+      await repository.updatePaymentAccount(
+        PaymentAccount(
+          id: 'payment-account-1',
+          bankName: 'Wallet',
+          alias: 'Tarjeta',
+          type: PaymentAccountType.creditCard,
+          closingDayOfMonth: 25,
+          createdAt: createdAt,
+        ),
+      );
+
+      final updatedAccount =
+          (await repository.watchPaymentAccounts().first).single;
+
+      expect(updatedAccount.type, PaymentAccountType.creditCard);
+      expect(updatedAccount.closingDayOfMonth, 25);
+    });
+
+    test(
+      'updatePaymentAccount clears closing day when type changes away from credit card',
+      () async {
+        final createdAt = DateTime(2026, 4, 28);
+        await _insertPaymentAccount(
+          database,
+          type: PaymentAccountType.creditCard,
+          closingDayOfMonth: 25,
+          createdAt: createdAt,
+        );
+
+        await repository.updatePaymentAccount(
+          PaymentAccount(
+            id: 'payment-account-1',
+            bankName: 'Wallet',
+            alias: 'Cash',
+            type: PaymentAccountType.cash,
+            closingDayOfMonth: 25,
+            createdAt: createdAt,
+          ),
+        );
+
+        final updatedAccount =
+            (await repository.watchPaymentAccounts().first).single;
+
+        expect(updatedAccount.type, PaymentAccountType.cash);
+        expect(updatedAccount.closingDayOfMonth, isNull);
+      },
+    );
 
     test('deletePaymentAccount removes an unlinked account', () async {
       await _insertPaymentAccount(database);
@@ -199,6 +301,7 @@ Future<void> _insertPaymentAccount(
   PaymentAccountType type = PaymentAccountType.cash,
   String? cardLastDigits,
   String? iban,
+  int? closingDayOfMonth,
   DateTime? createdAt,
 }) {
   return database
@@ -209,6 +312,7 @@ Future<void> _insertPaymentAccount(
           bankName: 'Wallet',
           alias: 'Cash',
           type: type.name,
+          closingDayOfMonth: drift.Value(closingDayOfMonth),
           cardLastDigits: drift.Value(cardLastDigits),
           iban: drift.Value(iban),
           createdAt: createdAt ?? DateTime(2026, 4, 28),

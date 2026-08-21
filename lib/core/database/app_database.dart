@@ -18,7 +18,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.test(super.executor);
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -44,11 +44,18 @@ class AppDatabase extends _$AppDatabase {
       if (from < 6) {
         await migrator.createTable(savingGoalsTable);
       }
+      if (from >= 2 && from < 7) {
+        await migrator.addColumn(
+          paymentAccountsTable,
+          paymentAccountsTable.closingDayOfMonth,
+        );
+      }
     },
     beforeOpen: (_) async {
       await _ensureCurrencyColumn('incomes_table');
       await _ensureCurrencyColumn('expenses_table');
       await _ensureIncomePaymentAccountColumn();
+      await _ensurePaymentAccountClosingDayColumn();
     },
   );
 
@@ -74,6 +81,22 @@ class AppDatabase extends _$AppDatabase {
     if (!hasPaymentAccountId) {
       await customStatement(
         'ALTER TABLE incomes_table ADD COLUMN payment_account_id TEXT NULL',
+      );
+    }
+  }
+
+  Future<void> _ensurePaymentAccountClosingDayColumn() async {
+    final columns = await customSelect(
+      'PRAGMA table_info(payment_accounts_table)',
+    ).get();
+    final hasClosingDayOfMonth = columns.any(
+      (row) => row.data['name'] == 'closing_day_of_month',
+    );
+
+    if (!hasClosingDayOfMonth) {
+      await customStatement(
+        'ALTER TABLE payment_accounts_table '
+        'ADD COLUMN closing_day_of_month INTEGER NULL',
       );
     }
   }

@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/database/app_database.dart';
+import '../../balance/domain/balance_calculator.dart';
+import '../../balance/domain/balance_status.dart';
+import '../../balance/domain/balance_summary.dart';
+import '../../balance/presentation/balance_page.dart';
 import '../../incomes/data/repository/income_repository.dart';
 import '../../incomes/domain/income.dart';
 import '../../incomes/presentation/incomes_page.dart';
@@ -129,6 +133,10 @@ class _HomePageState extends State<HomePage> {
                         final expenses = expenseSnapshot.data ?? [];
                         final expenseTotalsByCurrency =
                             _expenseTotalsByCurrency(expenses);
+                        final balanceSummaries = BalanceCalculator.build(
+                          incomes: incomes,
+                          expenses: expenses,
+                        );
 
                         return ListView(
                           children: [
@@ -318,8 +326,8 @@ class _HomePageState extends State<HomePage> {
                                                       style: TextStyle(
                                                         color: Colors.white
                                                             .withValues(
-                                                          alpha: 0.75,
-                                                        ),
+                                                              alpha: 0.75,
+                                                            ),
                                                         fontSize: 11,
                                                       ),
                                                     ),
@@ -347,8 +355,8 @@ class _HomePageState extends State<HomePage> {
                                                       style: TextStyle(
                                                         color: Colors.white
                                                             .withValues(
-                                                          alpha: 0.75,
-                                                        ),
+                                                              alpha: 0.75,
+                                                            ),
                                                         fontSize: 11,
                                                       ),
                                                     ),
@@ -440,6 +448,69 @@ class _HomePageState extends State<HomePage> {
                               ),
                             ),
                             const SizedBox(height: 16),
+                            // Balance module card
+                            GestureDetector(
+                              onTap: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => BalancePage(
+                                      incomeRepository: _incomeRepository,
+                                      expenseRepository: _expenseRepository,
+                                    ),
+                                  ),
+                                );
+                              },
+                              child: Card(
+                                elevation: 2,
+                                child: Container(
+                                  padding: const EdgeInsets.all(20),
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(12),
+                                    gradient: LinearGradient(
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                      colors: [
+                                        Colors.indigo,
+                                        Colors.indigo.withValues(alpha: 0.8),
+                                      ],
+                                    ),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          const Text(
+                                            'Balance',
+                                            style: TextStyle(
+                                              color: Colors.white70,
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                          Icon(
+                                            Icons.account_balance_wallet,
+                                            color: Colors.white.withValues(
+                                              alpha: 0.6,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 16),
+                                      _BalanceSummariesText(
+                                        summaries: balanceSummaries,
+                                        primaryFontSize: 36,
+                                        secondaryFontSize: 22,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
                             // Additional modules placeholder
                             SizedBox(
                               height: 96,
@@ -512,38 +583,6 @@ class _HomePageState extends State<HomePage> {
   }
 }
 
-class _PersonalMetric extends StatelessWidget {
-  const _PersonalMetric({required this.value, required this.label});
-
-  final String value;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          value,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 32,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.75),
-            fontSize: 12,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 class _TotalsText extends StatelessWidget {
   const _TotalsText({
     required this.totalsByCurrency,
@@ -578,5 +617,52 @@ class _TotalsText extends StatelessWidget {
         ],
       ],
     );
+  }
+}
+
+class _BalanceSummariesText extends StatelessWidget {
+  const _BalanceSummariesText({
+    required this.summaries,
+    required this.primaryFontSize,
+    required this.secondaryFontSize,
+  });
+
+  final List<BalanceSummary> summaries;
+  final double primaryFontSize;
+  final double secondaryFontSize;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (var index = 0; index < summaries.length; index++) ...[
+          if (index > 0) const SizedBox(height: 8),
+          Text(
+            _formatAmount(summaries[index]),
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: index == 0 ? primaryFontSize : secondaryFontSize,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            summaries[index].status.label,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.75),
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  String _formatAmount(BalanceSummary summary) {
+    final sign = summary.balance < 0 ? '-' : '';
+    return '$sign${summary.currency.symbol}'
+        '${summary.balance.abs().toStringAsFixed(2)}';
   }
 }

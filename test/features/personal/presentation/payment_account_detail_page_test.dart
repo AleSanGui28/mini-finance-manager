@@ -22,6 +22,7 @@ class FakePaymentAccountRepository implements PaymentAccountRepository {
     required PaymentAccountType type,
     String? cardLastDigits,
     String? iban,
+    int? closingDayOfMonth,
   }) {
     throw UnimplementedError();
   }
@@ -81,6 +82,25 @@ void main() {
       expect(find.textContaining('CR05015202001026284066'), findsNothing);
     });
 
+    testWidgets('renders credit card billing details', (tester) async {
+      final repository = FakePaymentAccountRepository();
+
+      await tester.pumpWidget(
+        _buildPage(
+          repository,
+          paymentAccount: _paymentAccount(
+            type: PaymentAccountType.creditCard,
+            closingDayOfMonth: 25,
+          ),
+        ),
+      );
+
+      expect(find.text('Fecha de corte'), findsOneWidget);
+      expect(find.text('25'), findsOneWidget);
+      expect(find.text('Rango de pago'), findsOneWidget);
+      expect(find.text('del 25 al 10 del siguiente mes'), findsOneWidget);
+    });
+
     testWidgets('does not delete when confirmation is cancelled', (
       tester,
     ) async {
@@ -131,21 +151,28 @@ void main() {
   });
 }
 
-Widget _buildPage(FakePaymentAccountRepository repository) {
+Widget _buildPage(
+  FakePaymentAccountRepository repository, {
+  PaymentAccount? paymentAccount,
+}) {
   return MaterialApp(
     home: PaymentAccountDetailPage(
       repository: repository,
-      paymentAccount: _paymentAccount(),
+      paymentAccount: paymentAccount ?? _paymentAccount(),
     ),
   );
 }
 
-PaymentAccount _paymentAccount() {
+PaymentAccount _paymentAccount({
+  PaymentAccountType type = PaymentAccountType.debitCard,
+  int? closingDayOfMonth,
+}) {
   return PaymentAccount(
     id: 'payment-account-1',
     bankName: 'Banco Nacional',
     alias: 'Principal',
-    type: PaymentAccountType.debitCard,
+    type: type,
+    closingDayOfMonth: closingDayOfMonth,
     cardLastDigits: '1234',
     iban: 'CR05015202001026284066',
     createdAt: DateTime(2026, 4, 28),

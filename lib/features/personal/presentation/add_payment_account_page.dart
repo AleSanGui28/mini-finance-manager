@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../data/repository/payment_account_repository.dart';
 import '../domain/payment_account.dart';
 import '../domain/payment_account_type.dart';
+import 'credit_card_billing_cycle_text.dart';
 
 class AddPaymentAccountPage extends StatefulWidget {
   final PaymentAccountRepository repository;
@@ -25,6 +26,7 @@ class _AddPaymentAccountPageState extends State<AddPaymentAccountPage> {
   final _aliasController = TextEditingController();
   final _cardLastDigitsController = TextEditingController();
   final _ibanController = TextEditingController();
+  int? _selectedClosingDayOfMonth;
   bool _isLoading = false;
 
   bool get _isEditing => widget.paymentAccount != null;
@@ -39,6 +41,7 @@ class _AddPaymentAccountPageState extends State<AddPaymentAccountPage> {
       _aliasController.text = paymentAccount.alias;
       _cardLastDigitsController.text = paymentAccount.cardLastDigits ?? '';
       _ibanController.text = paymentAccount.iban ?? '';
+      _selectedClosingDayOfMonth = paymentAccount.closingDayOfMonth;
     }
   }
 
@@ -62,6 +65,10 @@ class _AddPaymentAccountPageState extends State<AddPaymentAccountPage> {
         _selectedType == PaymentAccountType.creditCard;
   }
 
+  bool _shouldShowClosingDayOfMonth() {
+    return _selectedType == PaymentAccountType.creditCard;
+  }
+
   Future<void> _submitForm() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -76,6 +83,9 @@ class _AddPaymentAccountPageState extends State<AddPaymentAccountPage> {
       final iban = _shouldShowIban()
           ? _emptyToNull(_ibanController.text)
           : null;
+      final closingDayOfMonth = _shouldShowClosingDayOfMonth()
+          ? _selectedClosingDayOfMonth
+          : null;
 
       if (_isEditing) {
         final originalAccount = widget.paymentAccount!;
@@ -85,6 +95,7 @@ class _AddPaymentAccountPageState extends State<AddPaymentAccountPage> {
             bankName: _bankNameController.text.trim(),
             alias: _aliasController.text.trim(),
             type: _selectedType,
+            closingDayOfMonth: closingDayOfMonth,
             cardLastDigits: cardLastDigits,
             iban: iban,
             createdAt: originalAccount.createdAt,
@@ -95,6 +106,7 @@ class _AddPaymentAccountPageState extends State<AddPaymentAccountPage> {
           bankName: _bankNameController.text.trim(),
           alias: _aliasController.text.trim(),
           type: _selectedType,
+          closingDayOfMonth: closingDayOfMonth,
           cardLastDigits: cardLastDigits,
           iban: iban,
         );
@@ -158,7 +170,12 @@ class _AddPaymentAccountPageState extends State<AddPaymentAccountPage> {
                 }).toList(),
                 onChanged: (value) {
                   if (value != null) {
-                    setState(() => _selectedType = value);
+                    setState(() {
+                      _selectedType = value;
+                      if (!_shouldShowClosingDayOfMonth()) {
+                        _selectedClosingDayOfMonth = null;
+                      }
+                    });
                   }
                 },
                 validator: (value) => value == null ? 'Tipo requerido' : null,
@@ -225,6 +242,47 @@ class _AddPaymentAccountPageState extends State<AddPaymentAccountPage> {
                     }
                     return null;
                   },
+                ),
+                const SizedBox(height: 16),
+              ],
+
+              if (_shouldShowClosingDayOfMonth()) ...[
+                DropdownButtonFormField<int>(
+                  initialValue: _selectedClosingDayOfMonth,
+                  decoration: const InputDecoration(
+                    labelText: 'Fecha de corte *',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.event),
+                  ),
+                  items: List.generate(31, (index) => index + 1).map((day) {
+                    return DropdownMenuItem(value: day, child: Text('$day'));
+                  }).toList(),
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedClosingDayOfMonth = value;
+                    });
+                  },
+                  validator: (value) {
+                    if (_selectedType == PaymentAccountType.creditCard &&
+                        value == null) {
+                      return 'Selecciona una fecha de corte';
+                    }
+
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+                InputDecorator(
+                  decoration: const InputDecoration(
+                    labelText: 'Rango de pago calculado',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.date_range),
+                  ),
+                  child: Text(
+                    _selectedClosingDayOfMonth == null
+                        ? 'Selecciona una fecha de corte'
+                        : formatPaymentWindow(_selectedClosingDayOfMonth!),
+                  ),
                 ),
                 const SizedBox(height: 16),
               ],
