@@ -1,52 +1,64 @@
 # Mini Finance Manager - Project Analysis
 
-**Last updated:** April 26, 2026  
+**Last updated:** May 7, 2026  
 **Repository:** `mini-finance-manager`  
 **Primary target:** Windows desktop  
 **Secondary target:** Android  
-**Status:** Active development. Incomes and Personal are implemented; Expenses has domain/data support but only placeholder UI.
+**Status:** Active development. This document reflects the current working tree, not only the last committed revision.
 
 ---
 
 ## A. Executive Summary
 
-Mini Finance Manager is a Flutter personal finance application built around local-first persistence with Drift and SQLite. The project follows a feature-based clean architecture style:
+Mini Finance Manager is a Flutter personal finance app built around local-first persistence with Drift and SQLite. The app uses a feature-based architecture:
 
-- `core/` contains shared database and theme infrastructure.
-- `features/` contains Home, Incomes, Personal, and Expenses modules.
+- `core/` contains database and theme infrastructure.
+- `features/` contains Home, Incomes, Personal, Expenses, and shared domain code.
 - Domain models are plain Dart classes/enums.
 - Repositories translate between Drift rows and domain entities.
-- UI uses Flutter widgets, `StreamBuilder`, and Drift streams.
-- Navigation is simple `Navigator.push` with `MaterialPageRoute`.
+- UI uses standard Flutter widgets, `StreamBuilder`, and simple `Navigator.push` navigation.
 - There is no backend, hosting layer, routing package, or state-management package.
 
-The previous analysis file was partially stale. The current code has schema version 3 and three tables, but older sections still said schema version 1 and one table. The current repo also has tests under `test/`, so the old "test folder empty" note is no longer accurate.
+Current implemented modules:
 
-No source code, generated code, dependencies, or migrations were changed during this analysis refresh.
+- Home dashboard.
+- Incomes with add/edit/delete/detail/list support.
+- Expenses with add/edit/delete/detail/list support.
+- Personal, split into payment accounts and savings.
+- Shared currency support for incomes and expenses.
+
+Not implemented yet:
+
+- Balance module.
+- Reporting/filtering.
+- Exchange-rate conversion.
+- Account balance reconciliation.
 
 ---
 
 ## B. Repository Architecture Map
 
-### Root-Level Files
-
 ```text
 mini-finance-manager/
   lib/
+    app.dart
+    main.dart
+    core/
+      database/
+      theme/
+    features/
+      home/
+      incomes/
+      expenses/
+      personal/
+      shared/
   test/
-  android/
-  windows/
-  ios/
-  macos/
-  linux/
-  web/
+    core/
+    features/
+  docs/
   pubspec.yaml
   pubspec.lock
   analysis_options.yaml
-  README.md
-  COMMANDS.md
-  TESTING_GUIDELINES.md
-  PROJECT_ANALYSIS.md
 ```
 
 ### Application Entry
@@ -61,8 +73,7 @@ lib/app.dart
   -> home: HomePage
 ```
 
-[lib/main.dart](lib/main.dart) is minimal and only starts the app.  
-[lib/app.dart](lib/app.dart) configures `MaterialApp`, disables the debug banner, applies theme settings, and sets [HomePage](lib/features/home/presentation/home_page.dart) as the first screen.
+`FinanceApp` configures the title, disables the debug banner, applies FlexColorScheme/GoogleFonts theme settings, and opens `HomePage` as the first screen.
 
 ### Core Layer
 
@@ -75,6 +86,7 @@ lib/core/
     incomes_table.dart
     payment_accounts_table.dart
     expenses_table.dart
+    saving_goals_table.dart
   theme/
     app_theme.dart
 ```
@@ -82,15 +94,19 @@ lib/core/
 Core responsibilities:
 
 - Drift database registration and migrations.
-- SQLite file connection using `path_provider`.
+- SQLite file connection through `path_provider` and `path`.
 - Table definitions.
 - Generated Drift implementation.
-- Material 3/FlexColorScheme theming.
+- App theme setup.
 
 ### Feature Layer
 
 ```text
 lib/features/
+  shared/
+    domain/
+      money_currency.dart
+
   home/
     presentation/
       home_page.dart
@@ -104,19 +120,9 @@ lib/features/
         income_repository.dart
     presentation/
       add_income_page.dart
+      income_detail_page.dart
       income_list_page.dart
       incomes_page.dart
-
-  personal/
-    domain/
-      payment_account.dart
-      payment_account_type.dart
-    data/
-      repository/
-        payment_account_repository.dart
-    presentation/
-      add_payment_account_page.dart
-      personal_page.dart
 
   expenses/
     domain/
@@ -128,10 +134,31 @@ lib/features/
       repository/
         expense_repository.dart
     presentation/
+      add_expense_page.dart
+      expense_detail_page.dart
       expenses_page.dart
+
+  personal/
+    domain/
+      payment_account.dart
+      payment_account_type.dart
+      saving_goal.dart
+      saving_goal_status.dart
+    data/
+      repository/
+        payment_account_repository.dart
+        saving_goal_repository.dart
+    presentation/
+      add_payment_account_page.dart
+      add_saving_goal_page.dart
+      payment_account_detail_page.dart
+      payment_accounts_page.dart
+      personal_page.dart
+      saving_goal_detail_page.dart
+      savings_page.dart
 ```
 
-The intended pattern is:
+The dominant pattern is:
 
 ```text
 domain model/enums
@@ -149,59 +176,131 @@ domain model/enums
 
 **Status:** Implemented.
 
-Location: [lib/features/home/presentation/home_page.dart](lib/features/home/presentation/home_page.dart)
+Location: `lib/features/home/presentation/home_page.dart`
 
-The dashboard shows three module cards:
+The dashboard creates or receives repositories for:
 
-- Ingresos / Incomes: total amount and count.
-- Cuentas de Pago / Payment Accounts: account count.
-- Gastos / Expenses: total amount and count.
+- `IncomeRepository`
+- `PaymentAccountRepository`
+- `SavingGoalRepository`
+- `ExpenseRepository`
 
-The page creates one `AppDatabase` in `initState`, then creates repositories unless repositories are injected through the constructor. This allows some test injection, but the current tests do not inject all repositories.
+If all repositories are injected, no local database is created. If any repository is missing, `HomePage` creates one `AppDatabase` instance and closes it in `dispose()`.
 
 Dashboard data is assembled with nested `StreamBuilder`s:
 
 ```text
-IncomeRepository.watchIncomes()
-  -> PaymentAccountRepository.watchPaymentAccounts()
-    -> ExpenseRepository.watchExpenses()
+watchIncomes()
+  -> watchPaymentAccounts()
+    -> watchSavingGoals()
+      -> watchExpenses()
 ```
+
+Current dashboard cards:
+
+- `Ingresos`: total income grouped by currency and income count.
+- `Personal`: payment-account count plus savings count and target total.
+- `Gastos`: total expenses grouped by currency and expense count.
+- Placeholder text for future modules.
 
 Navigation:
 
-- Incomes card opens `IncomesPage(repository: _incomeRepository)`.
-- Personal card opens `PersonalPage(repository: _paymentAccountRepository)`.
-- Expenses card opens `const ExpensesPage()`.
+- Incomes card opens `IncomesPage`.
+- Personal card opens `PersonalPage`.
+- Expenses card opens `ExpensesPage`.
 
-Important mismatch: the dashboard does not pass `ExpenseRepository` into `ExpensesPage`, because `ExpensesPage` currently has no repository dependency.
+Balance is not yet present on the dashboard.
 
-## Incomes
+## Shared Currency
 
-**Status:** Mostly implemented.
+**Status:** Implemented for incomes and expenses.
 
-Locations:
-
-- Domain: [lib/features/incomes/domain](lib/features/incomes/domain)
-- Data: [lib/features/incomes/data/repository/income_repository.dart](lib/features/incomes/data/repository/income_repository.dart)
-- UI: [lib/features/incomes/presentation](lib/features/incomes/presentation)
+Location: `lib/features/shared/domain/money_currency.dart`
 
 Implemented:
 
-- `Income` entity with id, amount, category, date, createdAt, description.
-- `IncomeCategory` enum with labels: salary, sinpe, transaction, other.
+- `MoneyCurrency.crc`
+- `MoneyCurrency.usd`
+- label extension
+- symbol extension
+
+Incomes and expenses store currency independently. Existing summary UIs group totals by currency rather than converting or mixing currencies.
+
+Important note: terminal output currently shows some Spanish/accented strings and the CRC symbol as mojibake. The current tests also assert the current symbol string, so encoding cleanup should be handled separately from feature work.
+
+## Incomes
+
+**Status:** Implemented.
+
+Locations:
+
+- Domain: `lib/features/incomes/domain`
+- Data: `lib/features/incomes/data/repository/income_repository.dart`
+- UI: `lib/features/incomes/presentation`
+
+Implemented:
+
+- `Income` entity with id, amount, currency, optional payment account id, category, date, createdAt, and description.
+- `IncomeCategory` enum: salary, sinpe, transaction, other.
 - `IncomeRepository.watchIncomes()`.
 - `IncomeRepository.addIncome(...)`.
-- `IncomesPage` with summary total, list, empty state, and floating add button.
-- `AddIncomePage` with amount/category/date/description form.
-- `IncomeListPage` exists as a separate history page.
+- `IncomeRepository.updateIncome(...)`.
+- `IncomeRepository.deleteIncome(...)`.
+- `IncomesPage` with grouped summary totals, list, empty state, add button, swipe edit/delete, and tap/long-press detail navigation.
+- `IncomeDetailPage` with account/category/date/description display, edit action, and delete action.
+- `AddIncomePage` supports both create and edit modes.
+- `IncomeListPage` exists as a separate history screen with similar list interactions.
 
-Notable details:
+Business rules in the current implementation:
 
-- Amount validation exists in `AddIncomePage` and rejects invalid, zero, and negative values.
-- Repository stores enum values as `.name` strings.
-- `IncomeRepository` does not catch invalid category strings when mapping rows; a bad DB value would throw.
-- `IncomeListPage` exists but is not currently reachable from `IncomesPage`; the previous analysis said there was a "Ver historial" button, but the current code does not include it.
-- Current repository methods are add/watch only, not full CRUD.
+- Income amounts must be numeric and greater than zero in the form.
+- Creating income requires a selected payment account.
+- Only payment account types that can receive income are shown in `AddIncomePage`.
+- Repository validation rejects missing payment accounts and accounts that cannot receive income.
+- Currency defaults to CRC and is persisted as `enum.name`.
+
+Current caveats:
+
+- `IncomeCategory` parsing uses `firstWhere` without fallback, so corrupt category strings can throw.
+- `IncomeListPage` exists, but `IncomesPage` already includes the visible income list; a separate route to `IncomeListPage` is not a central workflow.
+
+## Expenses
+
+**Status:** Implemented.
+
+Locations:
+
+- Domain: `lib/features/expenses/domain`
+- Data: `lib/features/expenses/data/repository/expense_repository.dart`
+- UI: `lib/features/expenses/presentation`
+
+Implemented:
+
+- `Expense` entity with id, amount, currency, type, payment account id, date, createdAt, optional description, fixed category, frequency, and custom frequency description.
+- `ExpenseType` enum: fixed, sporadic.
+- `ExpenseFrequency` enum: weekly, biweekly, monthly, yearly, custom.
+- `FixedExpenseCategory` enum: services, subscriptions, memberships, other.
+- `ExpenseRepository.watchExpenses()`, sorted by date descending.
+- `ExpenseRepository.addExpense(...)`.
+- `ExpenseRepository.updateExpense(...)`.
+- `ExpenseRepository.deleteExpense(...)`.
+- `ExpensesPage` with grouped summary totals, list, empty state, add button, swipe edit/delete, and tap/long-press detail navigation.
+- `ExpenseDetailPage` with account/type/date/description/fixed fields display, edit action, and delete action.
+- `AddExpensePage` supports both create and edit modes.
+
+Business rules in the current implementation:
+
+- Expense amounts must be numeric and greater than zero in the form.
+- Creating/editing requires a selected payment account.
+- Fixed expenses require fixed category and frequency.
+- Custom frequency requires a custom frequency description.
+- Sporadic expenses clear fixed-only fields.
+- Currency defaults to CRC and is persisted as `enum.name`.
+
+Current caveats:
+
+- Expense repository does not validate that `paymentAccountId` exists before insert/update.
+- There is no database-level foreign key constraint for payment-account references.
 
 ## Personal / Payment Accounts
 
@@ -209,57 +308,60 @@ Notable details:
 
 Locations:
 
-- Domain: [lib/features/personal/domain](lib/features/personal/domain)
-- Data: [lib/features/personal/data/repository/payment_account_repository.dart](lib/features/personal/data/repository/payment_account_repository.dart)
-- UI: [lib/features/personal/presentation](lib/features/personal/presentation)
+- Domain: `lib/features/personal/domain/payment_account.dart`
+- Data: `lib/features/personal/data/repository/payment_account_repository.dart`
+- UI: `lib/features/personal/presentation/payment_accounts_page.dart`
 
 Implemented:
 
 - `PaymentAccount` entity.
-- `PaymentAccountType` enum with labels: bankAccount, debitCard, creditCard, cash, other.
+- `PaymentAccountType` enum: bankAccount, debitCard, creditCard, cash, other.
+- `PaymentAccountType.canReceiveIncome`.
 - `PaymentAccountRepository.watchPaymentAccounts()`.
 - `PaymentAccountRepository.addPaymentAccount(...)`.
-- `PersonalPage` with list and empty state.
-- `AddPaymentAccountPage` with type, bank/entity, alias, optional last digits, and optional IBAN.
+- `PaymentAccountRepository.updatePaymentAccount(...)`.
+- `PaymentAccountRepository.deletePaymentAccount(...)`.
+- Linked-record count helpers for income/expense references.
+- Delete blocking when a payment account has linked income or expense records.
+- Type-change blocking when changing an account with linked incomes to a type that cannot receive income.
+- `PaymentAccountsPage` list with empty state, add button, swipe edit/delete, and tap/long-press detail navigation.
+- `PaymentAccountDetailPage` with edit and delete actions.
+- `AddPaymentAccountPage` supports create and edit modes.
 
-Notable details:
+Business rules in the current implementation:
 
-- The repository falls back to `PaymentAccountType.other` if the stored enum string is invalid.
-- `PersonalPage` accepts an optional repository, but creates a new `AppDatabase` if one is not injected.
-- Current repository methods are add/watch only, not full CRUD.
-- Some UI text in the source appears mojibake-encoded in terminal output in certain shells, but the source itself contains Spanish text and accented labels.
+- Card data stores only optional last 4 digits.
+- IBAN is optional and masked in display.
+- Account type parsing falls back to `PaymentAccountType.other`.
+- Credit card and other accounts cannot receive incomes.
 
-## Expenses
+## Personal / Savings
 
-**Status:** Partial.
+**Status:** Implemented.
 
 Locations:
 
-- Domain: [lib/features/expenses/domain](lib/features/expenses/domain)
-- Data: [lib/features/expenses/data/repository/expense_repository.dart](lib/features/expenses/data/repository/expense_repository.dart)
-- UI: [lib/features/expenses/presentation/expenses_page.dart](lib/features/expenses/presentation/expenses_page.dart)
+- Domain: `lib/features/personal/domain/saving_goal.dart`
+- Data: `lib/features/personal/data/repository/saving_goal_repository.dart`
+- UI: `lib/features/personal/presentation/savings_page.dart`
 
 Implemented:
 
-- `Expense` entity.
-- `ExpenseType` enum: fixed, sporadic.
-- `ExpenseFrequency` enum: weekly, biweekly, monthly, yearly, custom.
-- `FixedExpenseCategory` enum: services, subscriptions, memberships, other.
-- `ExpenseRepository.watchExpenses()`, sorted by date descending.
-- `ExpenseRepository.addExpense(...)`.
-- `ExpensesPage` placeholder screen.
+- `SavingGoal` entity with id, title, target amount, optional target date, status, createdAt, and optional updatedAt.
+- `SavingGoalStatus` enum: active, frozen.
+- `SavingGoalRepository.watchSavingGoals()`, sorted by createdAt descending.
+- `SavingGoalRepository.addSavingGoal(...)`.
+- `SavingGoalRepository.updateSavingGoal(...)`.
+- `SavingGoalRepository.deleteSavingGoal(...)`.
+- `freezeSavingGoal(...)` and `resumeSavingGoal(...)`.
+- `SavingsPage` with total target summary, active/frozen counts, list, empty state, add button, swipe edit/delete, and tap/long-press detail navigation.
+- `SavingGoalDetailPage` with freeze/resume, edit, and delete actions.
+- `AddSavingGoalPage` supports create and edit modes.
 
-Incomplete:
+Current caveats:
 
-- No expenses list UI.
-- No add-expense form.
-- No account picker.
-- No validation for fixed/sporadic-specific fields.
-- No display of fixed category, frequency, or payment account details.
-- No navigation from expenses page to an add form.
-- No tests for expenses.
-
-Important inconsistency: `Expense.type` is currently a `String`, even though `ExpenseType` exists. The repository validates the stored string but maps it back to a string instead of the enum. This weakens the domain model and should be corrected before building more expenses UI.
+- Saving goals do not store currency.
+- Savings are goals only; they do not currently transfer money or affect account balances.
 
 ---
 
@@ -267,22 +369,22 @@ Important inconsistency: `Expense.type` is currently a `String`, even though `Ex
 
 ### Database Setup
 
-Location: [lib/core/database](lib/core/database)
-
-The database is registered in [app_database.dart](lib/core/database/app_database.dart):
+Location: `lib/core/database/app_database.dart`
 
 ```dart
-@DriftDatabase(tables: [IncomesTable, PaymentAccountsTable, ExpensesTable])
+@DriftDatabase(
+  tables: [IncomesTable, PaymentAccountsTable, ExpensesTable, SavingGoalsTable],
+)
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(openConnection());
   AppDatabase.test(super.executor);
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 6;
 }
 ```
 
-The production connection is created in [database_connection.dart](lib/core/database/database_connection.dart):
+Production connection:
 
 ```text
 getApplicationDocumentsDirectory()
@@ -290,41 +392,38 @@ getApplicationDocumentsDirectory()
   -> NativeDatabase(file)
 ```
 
-The test constructor accepts a custom executor and is used by repository tests with `NativeDatabase.memory()`.
-
 ### Current Schema Version
 
-**Current schema version:** 3
+**Current schema version:** 6
 
 Migration strategy:
 
 - Fresh install: `migrator.createAll()`.
 - Upgrade from `< 2`: create `paymentAccountsTable`.
 - Upgrade from `< 3`: create `expensesTable`.
+- Upgrade from `< 4`: add currency columns to incomes and expenses where applicable.
+- Upgrade from `< 5`: add nullable `payment_account_id` to incomes.
+- Upgrade from `< 6`: create `savingGoalsTable`.
+- `beforeOpen` repairs missing currency columns and missing income payment-account column for development/legacy database states.
 
 ### Table 1: `incomes_table`
 
-Defined in [incomes_table.dart](lib/core/database/incomes_table.dart).
+Defined in `lib/core/database/incomes_table.dart`.
 
 ```text
-id           TEXT PRIMARY KEY
-amount       REAL NOT NULL
-category     TEXT NOT NULL
-date         DATETIME NOT NULL
-description  TEXT NOT NULL DEFAULT ''
-created_at   DATETIME NOT NULL
+id                  TEXT PRIMARY KEY
+amount              REAL NOT NULL
+currency            TEXT NOT NULL DEFAULT 'crc'
+payment_account_id  TEXT NULL
+category            TEXT NOT NULL
+date                DATETIME NOT NULL
+description         TEXT NOT NULL DEFAULT ''
+created_at          DATETIME NOT NULL
 ```
-
-Domain enum values stored in `category`:
-
-- `salary`
-- `sinpe`
-- `transaction`
-- `other`
 
 ### Table 2: `payment_accounts_table`
 
-Defined in [payment_accounts_table.dart](lib/core/database/payment_accounts_table.dart).
+Defined in `lib/core/database/payment_accounts_table.dart`.
 
 ```text
 id                TEXT PRIMARY KEY
@@ -336,21 +435,14 @@ card_last_digits  TEXT NULL
 iban              TEXT NULL
 ```
 
-Domain enum values stored in `type`:
-
-- `bankAccount`
-- `debitCard`
-- `creditCard`
-- `cash`
-- `other`
-
 ### Table 3: `expenses_table`
 
-Defined in [expenses_table.dart](lib/core/database/expenses_table.dart).
+Defined in `lib/core/database/expenses_table.dart`.
 
 ```text
 id                            TEXT PRIMARY KEY
 amount                        REAL NOT NULL
+currency                      TEXT NOT NULL DEFAULT 'crc'
 type                          TEXT NOT NULL
 payment_account_id            TEXT NOT NULL
 date                          DATETIME NOT NULL
@@ -361,187 +453,80 @@ frequency                     TEXT NULL
 custom_frequency_description  TEXT NULL
 ```
 
-Domain enum values stored in `type`:
+### Table 4: `saving_goals_table`
 
-- `fixed`
-- `sporadic`
+Defined in `lib/core/database/saving_goals_table.dart`.
 
-Domain enum values stored in `fixed_category`:
-
-- `services`
-- `subscriptions`
-- `memberships`
-- `other`
-
-Domain enum values stored in `frequency`:
-
-- `weekly`
-- `biweekly`
-- `monthly`
-- `yearly`
-- `custom`
+```text
+id             TEXT PRIMARY KEY
+title          TEXT NOT NULL
+target_amount  REAL NOT NULL
+target_date    DATETIME NULL
+status         TEXT NOT NULL
+created_at     DATETIME NOT NULL
+updated_at     DATETIME NULL
+```
 
 ### Generated Drift File
 
-Generated file: [lib/core/database/app_database.g.dart](lib/core/database/app_database.g.dart)
+Generated file: `lib/core/database/app_database.g.dart`
 
-The generated file matches the three current table definitions and exposes:
-
-- `$IncomesTableTable`
-- `$PaymentAccountsTableTable`
-- `$ExpensesTableTable`
-- `IncomesTableData`
-- `PaymentAccountsTableData`
-- `ExpensesTableData`
-- Drift companions and table managers
-
-This file should not be edited by hand. Regenerate only after schema changes.
+This file should not be edited by hand. Regenerate it with build runner after schema changes.
 
 ### Database Constraints and Gaps
 
 - Primary keys are defined for all tables.
 - No explicit indexes are defined.
-- No foreign key constraint is defined for `expenses_table.payment_account_id`.
+- No explicit foreign key constraints are defined.
+- Payment-account linkage is enforced mostly at the repository/UI layer.
 - No database-level checks prevent negative amounts.
-- Enum values are stored as strings without database-level constraints.
-- Delete/update repository methods are not currently implemented.
+- Enum values are stored as strings.
+- Some enum parsing has fallback behavior; income category parsing is stricter and can throw on invalid stored values.
 
 ---
 
-## E. Missing / Incomplete Areas
+## E. Testing Status
 
-### Implementation Gaps
-
-- Expenses UI is still a stub.
-- Expenses domain should use `ExpenseType` instead of `String` for `Expense.type`.
-- Expenses page does not receive repositories from Home.
-- No add-expense page exists.
-- No expense history/detail page exists.
-- No edit/delete operations exist for incomes, payment accounts, or expenses.
-- No filtering/reporting exists yet.
-- No settings/currency configuration exists.
-- No localization setup exists; strings are hardcoded.
-
-### Repository Pattern Gaps
-
-Current repositories expose:
+Current test files:
 
 ```text
-IncomeRepository:
-  watchIncomes()
-  addIncome(...)
-
-PaymentAccountRepository:
-  watchPaymentAccounts()
-  addPaymentAccount(...)
-
-ExpenseRepository:
-  watchExpenses()
-  addExpense(...)
-```
-
-The old analysis described these as full CRUD repositories, but the current code only supports create + watch/read streams.
-
-### Navigation Gaps
-
-- Navigation is simple and appropriate for the current app size.
-- There are no named routes, deep links, or route guards.
-- `IncomeListPage` is present but unreachable.
-- Expenses navigation only reaches a placeholder page.
-
-### Testing Gaps
-
-Current test files exist:
-
-```text
+test/core/database/app_database_migration_test.dart
+test/features/shared/domain/money_currency_test.dart
 test/features/home/presentation/home_page_test.dart
 test/features/incomes/domain/income_test.dart
 test/features/incomes/data/repository/income_repository_test.dart
 test/features/incomes/presentation/add_income_page_test.dart
+test/features/incomes/presentation/incomes_page_test.dart
+test/features/incomes/presentation/income_list_page_test.dart
+test/features/expenses/domain/expense_test.dart
+test/features/expenses/data/repository/expense_repository_test.dart
+test/features/expenses/presentation/add_expense_page_test.dart
+test/features/expenses/presentation/expenses_page_test.dart
+test/features/personal/domain/payment_account_type_test.dart
+test/features/personal/domain/saving_goal_status_test.dart
+test/features/personal/data/repository/payment_account_repository_test.dart
+test/features/personal/data/repository/saving_goal_repository_test.dart
+test/features/personal/presentation/add_payment_account_page_test.dart
+test/features/personal/presentation/add_saving_goal_page_test.dart
+test/features/personal/presentation/payment_account_detail_page_test.dart
+test/features/personal/presentation/personal_page_test.dart
+test/features/personal/presentation/savings_page_test.dart
 ```
 
-Coverage gaps:
+Coverage currently includes:
 
-- No tests for Personal/payment accounts.
-- No tests for Expenses.
-- No tests for database migrations.
-- No integration tests.
-- Home tests appear stale relative to the current dashboard, because the dashboard now has three cards.
+- Domain enum/model tests.
+- Repository tests with in-memory Drift databases.
+- Database migration tests for currency, income payment account id, and saving goals.
+- Widget tests for main feature pages and forms.
 
-Verification attempts during the April 26, 2026 analysis refresh:
-
-- `flutter analyze` timed out after 120 seconds with no usable output.
-- `flutter test --no-pub` timed out after 180 seconds with no usable output.
-- `flutter test --no-pub test/features/incomes/domain/income_test.dart` timed out after 60 seconds with no usable output.
-
-Because of those timeouts, current analyzer/test health is not confirmed.
-
-### Dependency and Project Hygiene Gaps
-
-- `database_connection.dart` imports `package:path/path.dart`, but `path` is not listed as a direct dependency in `pubspec.yaml`. It is present transitively in `pubspec.lock`, but the direct import should usually be backed by a direct dependency.
-- `pubspec.yaml` uses loose caret constraints; `pubspec.lock` currently resolves newer versions than the minimum constraints, for example Drift 2.32.1 and FlexColorScheme 8.4.0.
-- `cupertino_icons` is listed but does not appear central to the current UI.
-- Some generated platform plugin registrant files were already modified in the working tree before this documentation refresh.
-
-### Database Lifecycle Risks
-
-- `HomePage` creates an `AppDatabase` but does not close it.
-- `PersonalPage` can create its own `AppDatabase` when no repository is injected.
-- Tests that instantiate `HomePage` without injected repositories may touch real platform/database initialization paths.
-
-### Data Integrity Risks
-
-- Expense account references are plain strings with no enforced FK.
-- Income enum parsing can throw if corrupt/legacy category data exists.
-- Payment-account enum parsing has fallback behavior, but Income and Expenses are not fully consistent.
-- There are no domain-level value objects or shared validation helpers for money amounts.
+Verification was not rerun during this documentation refresh.
 
 ---
 
-## F. Suggested Next Implementation Step
+## F. Dependencies
 
-The safest next implementation step is to complete the Expenses feature using the existing Incomes and Personal patterns, without introducing routing or state-management dependencies.
-
-Recommended order:
-
-1. Tighten the Expenses domain contract.
-   - Change `Expense.type` from `String` to `ExpenseType`.
-   - Keep enum-string persistence inside `ExpenseRepository`.
-   - Add safe enum parsing similar to `PaymentAccountRepository`.
-
-2. Pass dependencies into `ExpensesPage`.
-   - `ExpenseRepository` for expenses.
-   - `PaymentAccountRepository` for payment-account selection/display.
-   - Continue using constructor injection.
-
-3. Build the first real Expenses UI.
-   - Expense list sorted by date descending.
-   - Summary total.
-   - Empty state.
-   - Floating action button to add an expense.
-
-4. Add `AddExpensePage`.
-   - Amount validation.
-   - Type selector: fixed/sporadic.
-   - Payment account selector.
-   - Date picker.
-   - Optional description.
-   - Fixed-only fields: fixed category and frequency.
-   - Custom frequency description when frequency is custom.
-
-5. Add focused tests.
-   - Expense domain tests.
-   - Expense repository tests with in-memory Drift.
-   - Widget tests for `ExpensesPage` and `AddExpensePage`.
-   - Refresh stale Home tests to inject all repositories and expect three dashboard cards.
-
-This keeps the app aligned with its current architecture and avoids premature dependencies.
-
----
-
-## Current Dependency Summary
-
-From [pubspec.yaml](pubspec.yaml):
+From `pubspec.yaml`:
 
 ### Production Dependencies
 
@@ -552,6 +537,7 @@ flex_color_scheme: ^8.0.0
 google_fonts: ^6.2.1
 drift: ^2.18.0
 sqlite3_flutter_libs: ^0.5.0
+path: ^1.9.1
 path_provider: ^2.1.0
 uuid: ^4.0.0
 cupertino_icons: ^1.0.8
@@ -567,44 +553,103 @@ build_runner: ^2.4.0
 flutter_lints: ^6.0.0
 ```
 
-### Locked Versions Observed
+Notable current dependency state:
 
-`pubspec.lock` currently resolves:
-
-- `drift` 2.32.1
-- `drift_dev` 2.32.1
-- `build_runner` 2.14.0
-- `flex_color_scheme` 8.4.0
-- `google_fonts` 6.3.3
-- `path_provider` 2.1.5
-- `sqlite3_flutter_libs` 0.5.42
-- `uuid` 4.5.3
+- `path` is now a direct dependency and is used by `database_connection.dart`.
+- No routing package is present.
+- No state-management package is present.
+- No networking/backend dependency is present.
 
 ---
 
-## Working Context for Future Tasks
+## G. Known Risks and Gaps
+
+### Product Gaps
+
+- Balance module is not implemented.
+- No reporting, budgets, filters, or search.
+- No exchange-rate settings or conversion.
+- No real account balance ledger.
+- Saving goals are not connected to account balances.
+
+### Data Integrity Risks
+
+- No foreign key constraints for payment-account references.
+- Expense repository does not validate payment-account existence.
+- Income category parsing can throw if stored data is invalid.
+- Database-level amount constraints are absent.
+- Multi-currency totals are grouped, but no conversion exists.
+
+### UI / Text Risks
+
+- Some Spanish labels and currency symbols appear mojibake-encoded in terminal output.
+- Several UI strings are hardcoded; there is no localization system.
+- Savings display target totals without currency.
+
+### Architecture Risks
+
+- Summary total calculation is duplicated in multiple UI files.
+- Nested `StreamBuilder`s are simple and acceptable for now, but derived dashboards can become harder to maintain as modules grow.
+- Payment-account linkage rules are spread across repositories and UI forms.
+
+---
+
+## H. Suggested Next Implementation Step
+
+The safest next implementation step is the Balance feature requested for the next phase.
+
+Recommended direction:
+
+1. Create a new feature folder:
+
+```text
+lib/features/balance/
+  domain/
+  presentation/
+```
+
+2. Keep Balance read-only and derived from existing streams:
+
+```text
+IncomeRepository.watchIncomes()
+ExpenseRepository.watchExpenses()
+```
+
+3. Do not add a database table, route package, state-management package, or dependency.
+
+4. Compute totals by currency:
+
+```text
+Balance = Total Incomes - Total Expenses
+```
+
+5. Avoid mixing currencies. CRC and USD balances should be separate unless exchange-rate conversion is explicitly added later.
+
+6. Add:
+
+- Balance summary/card on `HomePage`.
+- `BalancePage` detail screen.
+- Pure domain calculator/status classes to avoid duplicating balance math in presentation.
+- Tests for positive, negative, zero, empty, and multi-currency balance cases.
+
+This keeps the app aligned with its current architecture and avoids premature dependencies.
+
+---
+
+## I. Working Context for Future Tasks
 
 Preserve these constraints unless explicitly changed:
 
 - Offline-first, local-only app.
 - Windows desktop first, Android later.
 - Drift + SQLite persistence.
-- Feature-based / clean architecture.
-- Minimal dependencies.
+- Feature-based structure.
+- Shared code in `lib/core` or `lib/features/shared` when appropriate.
+- Database code in `lib/core/database`.
 - No backend or hosting.
 - No routing package unless explicitly requested.
 - No state-management package unless explicitly requested.
-- Prefer `StreamBuilder` + repository streams for current scope.
+- Prefer `StreamBuilder` and repository streams for current scope.
 - Use generated Drift files only to understand schema; do not edit them manually.
-
-Primary near-term product direction:
-
-```text
-Make Expenses a real module:
-  domain consistency
-  repository mapping
-  add/list UI
-  account linkage
-  focused tests
-```
-
+- Use English for code and comments.
+- UI labels can be Spanish.

@@ -6,6 +6,7 @@ import '../../domain/expense.dart' as domain;
 import '../../domain/expense_frequency.dart';
 import '../../domain/expense_type.dart';
 import '../../domain/fixed_expense_category.dart';
+import '../../../shared/domain/money_currency.dart';
 
 class ExpenseRepository {
   ExpenseRepository(this._database);
@@ -23,6 +24,7 @@ class ExpenseRepository {
 
   Future<void> addExpense({
     required double amount,
+    MoneyCurrency currency = MoneyCurrency.crc,
     required ExpenseType type,
     required String paymentAccountId,
     required DateTime date,
@@ -37,6 +39,7 @@ class ExpenseRepository {
           ExpensesTableCompanion.insert(
             id: _uuid.v4(),
             amount: amount,
+            currency: Value(currency.name),
             type: type.name,
             paymentAccountId: paymentAccountId,
             date: date,
@@ -47,6 +50,32 @@ class ExpenseRepository {
             createdAt: DateTime.now(),
           ),
         );
+  }
+
+  Future<void> updateExpense(domain.Expense expense) async {
+    final expenseRow = ExpensesTableCompanion(
+      id: Value(expense.id),
+      amount: Value(expense.amount),
+      currency: Value(expense.currency.name),
+      type: Value(expense.type.name),
+      paymentAccountId: Value(expense.paymentAccountId),
+      date: Value(expense.date),
+      description: Value<String?>(expense.description),
+      fixedCategory: Value<String?>(expense.fixedCategory?.name),
+      frequency: Value<String?>(expense.frequency?.name),
+      customFrequencyDescription: Value<String?>(
+        expense.customFrequencyDescription,
+      ),
+      createdAt: Value(expense.createdAt),
+    );
+
+    await _database.update(_database.expensesTable).replace(expenseRow);
+  }
+
+  Future<void> deleteExpense(String id) {
+    return (_database.delete(
+      _database.expensesTable,
+    )..where((table) => table.id.equals(id))).go();
   }
 
   domain.Expense _mapRow(ExpensesTableData row) {
@@ -82,6 +111,7 @@ class ExpenseRepository {
     return domain.Expense(
       id: row.id,
       amount: row.amount,
+      currency: _mapCurrency(row.currency),
       type: expenseType,
       paymentAccountId: row.paymentAccountId,
       date: row.date,
@@ -90,6 +120,13 @@ class ExpenseRepository {
       fixedCategory: fixedCategory,
       frequency: frequency,
       customFrequencyDescription: row.customFrequencyDescription,
+    );
+  }
+
+  MoneyCurrency _mapCurrency(String value) {
+    return MoneyCurrency.values.firstWhere(
+      (currency) => currency.name == value,
+      orElse: () => MoneyCurrency.crc,
     );
   }
 }

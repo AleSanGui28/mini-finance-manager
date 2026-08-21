@@ -3,6 +3,7 @@ import 'package:drift/drift.dart';
 class ExpensesTable extends Table {
   TextColumn get id => text()();
   RealColumn get amount => real()();
+  TextColumn get currency => text().withDefault(const Constant('crc'))();
   TextColumn get type => text()();
   TextColumn get paymentAccountId => text()();
   DateTimeColumn get date => dateTime()();

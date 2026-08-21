@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mini_finance_manager/features/incomes/domain/income.dart';
 import 'package:mini_finance_manager/features/incomes/domain/income_category.dart';
+import 'package:mini_finance_manager/features/shared/domain/money_currency.dart';
 
 void main() {
   group('Income', () {
@@ -26,10 +27,28 @@ void main() {
       // Assert
       expect(income.id, equals(id));
       expect(income.amount, equals(amount));
+      expect(income.currency, equals(MoneyCurrency.crc));
+      expect(income.paymentAccountId, isNull);
       expect(income.category, equals(category));
       expect(income.date, equals(date));
       expect(income.createdAt, equals(createdAt));
       expect(income.description, equals(description));
+    });
+
+    test('creates income with dollar currency', () {
+      final income = Income(
+        id: 'id',
+        amount: 500,
+        currency: MoneyCurrency.usd,
+        paymentAccountId: 'payment-account-1',
+        category: IncomeCategory.other,
+        date: DateTime.now(),
+        createdAt: DateTime.now(),
+        description: '',
+      );
+
+      expect(income.currency, equals(MoneyCurrency.usd));
+      expect(income.paymentAccountId, 'payment-account-1');
     });
 
     test('creates income with zero amount (edge case)', () {

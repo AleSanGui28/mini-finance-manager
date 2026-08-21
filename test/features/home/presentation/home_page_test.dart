@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mini_finance_manager/features/balance/presentation/balance_page.dart';
 import 'package:mini_finance_manager/features/home/presentation/home_page.dart';
 import 'package:mini_finance_manager/features/expenses/data/repository/expense_repository.dart';
 import 'package:mini_finance_manager/features/expenses/domain/expense.dart'
@@ -12,8 +13,12 @@ import 'package:mini_finance_manager/features/incomes/domain/income.dart';
 import 'package:mini_finance_manager/features/incomes/domain/income_category.dart';
 import 'package:mini_finance_manager/features/incomes/presentation/incomes_page.dart';
 import 'package:mini_finance_manager/features/personal/data/repository/payment_account_repository.dart';
+import 'package:mini_finance_manager/features/personal/data/repository/saving_goal_repository.dart';
 import 'package:mini_finance_manager/features/personal/domain/payment_account.dart';
 import 'package:mini_finance_manager/features/personal/domain/payment_account_type.dart';
+import 'package:mini_finance_manager/features/personal/domain/saving_goal.dart';
+import 'package:mini_finance_manager/features/personal/domain/saving_goal_status.dart';
+import 'package:mini_finance_manager/features/shared/domain/money_currency.dart';
 
 // Mock repository for testing
 class MockIncomeRepository implements IncomeRepository {
@@ -29,11 +34,23 @@ class MockIncomeRepository implements IncomeRepository {
   @override
   Future<void> addIncome({
     required double amount,
+    MoneyCurrency currency = MoneyCurrency.crc,
+    required String paymentAccountId,
     required IncomeCategory category,
     required DateTime date,
     required String description,
   }) {
     // Not needed for these tests
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> updateIncome(Income income) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> deleteIncome(String id) {
     throw UnimplementedError();
   }
 }
@@ -56,7 +73,34 @@ class MockPaymentAccountRepository implements PaymentAccountRepository {
     required PaymentAccountType type,
     String? cardLastDigits,
     String? iban,
+    int? closingDayOfMonth,
   }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> updatePaymentAccount(PaymentAccount paymentAccount) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<PaymentAccountLinkedRecordCounts> getLinkedRecordCounts(
+    String paymentAccountId,
+  ) async {
+    return const PaymentAccountLinkedRecordCounts(
+      incomeCount: 0,
+      expenseCount: 0,
+    );
+  }
+
+  @override
+  Future<bool> canDeletePaymentAccount(String paymentAccountId) async => true;
+
+  @override
+  Future<bool> hasLinkedRecords(String paymentAccountId) async => false;
+
+  @override
+  Future<void> deletePaymentAccount(String paymentAccountId) {
     throw UnimplementedError();
   }
 }
@@ -75,6 +119,7 @@ class MockExpenseRepository implements ExpenseRepository {
   @override
   Future<void> addExpense({
     required double amount,
+    MoneyCurrency currency = MoneyCurrency.crc,
     required ExpenseType type,
     required String paymentAccountId,
     required DateTime date,
@@ -85,14 +130,73 @@ class MockExpenseRepository implements ExpenseRepository {
   }) {
     throw UnimplementedError();
   }
+
+  @override
+  Future<void> updateExpense(expense_domain.Expense expense) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> deleteExpense(String id) {
+    throw UnimplementedError();
+  }
 }
 
-Widget buildHomePage() {
+class MockSavingGoalRepository implements SavingGoalRepository {
+  final List<SavingGoal> _savingGoals;
+
+  MockSavingGoalRepository([List<SavingGoal>? savingGoals])
+    : _savingGoals = savingGoals ?? [];
+
+  @override
+  Stream<List<SavingGoal>> watchSavingGoals() {
+    return Stream.value(_savingGoals);
+  }
+
+  @override
+  Future<void> addSavingGoal({
+    required String title,
+    required double targetAmount,
+    DateTime? targetDate,
+    SavingGoalStatus status = SavingGoalStatus.active,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> updateSavingGoal(SavingGoal savingGoal) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> deleteSavingGoal(String id) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> freezeSavingGoal(String id) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> resumeSavingGoal(String id) {
+    throw UnimplementedError();
+  }
+}
+
+Widget buildHomePage({
+  IncomeRepository? incomeRepository,
+  PaymentAccountRepository? paymentAccountRepository,
+  ExpenseRepository? expenseRepository,
+  SavingGoalRepository? savingGoalRepository,
+}) {
   return MaterialApp(
     home: HomePage(
-      incomeRepository: MockIncomeRepository(),
-      paymentAccountRepository: MockPaymentAccountRepository(),
-      expenseRepository: MockExpenseRepository(),
+      incomeRepository: incomeRepository ?? MockIncomeRepository(),
+      paymentAccountRepository:
+          paymentAccountRepository ?? MockPaymentAccountRepository(),
+      expenseRepository: expenseRepository ?? MockExpenseRepository(),
+      savingGoalRepository: savingGoalRepository ?? MockSavingGoalRepository(),
     ),
   );
 }
@@ -133,6 +237,24 @@ void main() {
             widget is Text && widget.data != null && widget.data!.contains('₡'),
       );
       expect(text, findsWidgets);
+    });
+
+    testWidgets('Ingresos card groups totals by currency', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(
+        buildHomePage(
+          incomeRepository: MockIncomeRepository([
+            _income(id: 'income-1', amount: 100),
+            _income(id: 'income-2', amount: 40),
+            _income(id: 'income-3', amount: 25, currency: MoneyCurrency.usd),
+          ]),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('${MoneyCurrency.crc.symbol}140.00'), findsOneWidget);
+      expect(find.text(r'$25.00'), findsOneWidget);
     });
 
     testWidgets('Ingresos card is tappable', (WidgetTester tester) async {
@@ -186,6 +308,30 @@ void main() {
       );
     });
 
+    testWidgets('Personal card shows payment accounts and savings summary', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(
+        buildHomePage(
+          paymentAccountRepository: MockPaymentAccountRepository([
+            _paymentAccount(id: 'payment-account-1'),
+            _paymentAccount(id: 'payment-account-2'),
+          ]),
+          savingGoalRepository: MockSavingGoalRepository([
+            _savingGoal(id: 'saving-goal-1', targetAmount: 1000),
+            _savingGoal(id: 'saving-goal-2', targetAmount: 500),
+          ]),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Personal'), findsOneWidget);
+      expect(find.text('Cuentas de pago'), findsOneWidget);
+      expect(find.text('Ahorros'), findsOneWidget);
+      expect(find.text('1500'), findsOneWidget);
+      expect(find.text('meta total'), findsOneWidget);
+    });
+
     testWidgets('renders HomePage without errors', (WidgetTester tester) async {
       // Act
       await tester.pumpWidget(buildHomePage());
@@ -205,5 +351,116 @@ void main() {
       // Assert
       expect(find.byIcon(Icons.trending_up), findsOneWidget);
     });
+
+    testWidgets('Gastos card groups totals by currency', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(
+        buildHomePage(
+          expenseRepository: MockExpenseRepository([
+            _expense(id: 'expense-1', amount: 100),
+            _expense(id: 'expense-2', amount: 40),
+            _expense(id: 'expense-3', amount: 25, currency: MoneyCurrency.usd),
+          ]),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('${MoneyCurrency.crc.symbol}140.00'), findsOneWidget);
+      expect(find.text(r'$25.00'), findsOneWidget);
+    });
+
+    testWidgets('Balance card shows balance and status', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(
+        buildHomePage(
+          incomeRepository: MockIncomeRepository([
+            _income(id: 'income-1', amount: 1000),
+          ]),
+          expenseRepository: MockExpenseRepository([
+            _expense(id: 'expense-1', amount: 400),
+          ]),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await _scrollToBalanceCard(tester);
+
+      expect(find.text('Balance'), findsOneWidget);
+      expect(find.text('${MoneyCurrency.crc.symbol}600.00'), findsOneWidget);
+      expect(find.text('Beneficio'), findsOneWidget);
+    });
+
+    testWidgets('navigates to BalancePage when Balance card is tapped', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(buildHomePage());
+      await tester.pumpAndSettle();
+
+      await _scrollToBalanceCard(tester);
+      await tester.tap(find.text('Balance'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(BalancePage), findsOneWidget);
+    });
   });
+}
+
+Future<void> _scrollToBalanceCard(WidgetTester tester) async {
+  await tester.drag(find.byType(ListView), const Offset(0, -500));
+  await tester.pumpAndSettle();
+}
+
+Income _income({
+  required String id,
+  required double amount,
+  MoneyCurrency currency = MoneyCurrency.crc,
+}) {
+  return Income(
+    id: id,
+    amount: amount,
+    currency: currency,
+    paymentAccountId: 'payment-account-1',
+    category: IncomeCategory.salary,
+    date: DateTime(2026, 4, 28),
+    createdAt: DateTime(2026, 4, 28),
+    description: '',
+  );
+}
+
+expense_domain.Expense _expense({
+  required String id,
+  required double amount,
+  MoneyCurrency currency = MoneyCurrency.crc,
+}) {
+  return expense_domain.Expense(
+    id: id,
+    amount: amount,
+    currency: currency,
+    type: ExpenseType.sporadic,
+    paymentAccountId: 'payment-account-1',
+    date: DateTime(2026, 4, 28),
+    createdAt: DateTime(2026, 4, 28),
+  );
+}
+
+PaymentAccount _paymentAccount({required String id}) {
+  return PaymentAccount(
+    id: id,
+    bankName: 'Banco Nacional',
+    alias: 'Principal',
+    type: PaymentAccountType.cash,
+    createdAt: DateTime(2026, 4, 28),
+  );
+}
+
+SavingGoal _savingGoal({required String id, required double targetAmount}) {
+  return SavingGoal(
+    id: id,
+    title: 'Ahorro',
+    targetAmount: targetAmount,
+    status: SavingGoalStatus.active,
+    createdAt: DateTime(2026, 4, 28),
+  );
 }
